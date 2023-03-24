@@ -23,6 +23,7 @@ func (urp *UserRedisRepo) GetEmail(id string) string {
 	return "myname@xxx.com"
 }
 
+// UserRedisRepoOptions redis配置, 通过flag解析, 也可以通过其他方式解析, 如yaml, json等
 type UserRedisRepoOptions struct {
 	Host     string `flag:"host" default:"127.0.0.1" usage:"ip地址"`
 	Port     int    `flag:"port" default:"6379" usage:"端口"`
@@ -30,21 +31,25 @@ type UserRedisRepoOptions struct {
 	Password string `flag:"password" default:"mypassword" usage:"密码"`
 }
 
+// NewUserRedisRepo 初始化redis
 func NewUserRedisRepo(opt *UserRedisRepoOptions) (*UserRedisRepo, error) {
 	// 使用opt初始化client
 	slog.Info("init redis client", "options", opt)
 	return &UserRedisRepo{}, nil
 }
 
+// HttpServer
 type HttpServer struct {
 	server   *http.Server
 	userRepo UserRepo
 }
 
+// HttpServerRunOptions http服务配置
 type HttpServerRunOptions struct {
 	Addr string `flag:"addr" default:"0.0.0.0:8088" usage:"http服务监听地址"`
 }
 
+// NewHttpServer 初始化http服务, 并注册路由
 func NewHttpServer(opt *HttpServerRunOptions, repo UserRepo) (*HttpServer, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/email", func(w http.ResponseWriter, r *http.Request) {
@@ -61,9 +66,11 @@ func NewHttpServer(opt *HttpServerRunOptions, repo UserRepo) (*HttpServer, error
 	}, nil
 }
 
+// Run 启动http服务, 并等待退出信号, 收到退出信号后关闭http服务, 等待5秒后退出
 func (hs HttpServer) Run(ctx context.Context) error {
 	slog.Info("服务已启动 ")
 	go func() {
+		// 等待退出信号
 		<-ctx.Done()
 		sCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -75,9 +82,11 @@ func (hs HttpServer) Run(ctx context.Context) error {
 }
 
 func main() {
+	// 初始化容器
 	box.Provide[UserRepo](NewUserRedisRepo, box.WithFlagPrefix("repo-user-redis"))
 	box.Provide[*HttpServer](NewHttpServer, box.WithFlagPrefix("server-http"))
 
+	// 信号处理
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 	server, err := box.Build[*HttpServer](ctx, box.UseInit(func(ctx box.Context) error {
@@ -87,6 +96,7 @@ func main() {
 	if err != nil {
 		slog.Error("build失败", "error", err)
 	}
+	// 运行服务
 	if err := server.Run(ctx); err != nil {
 		slog.Error("服务退出", "error", err)
 	}
