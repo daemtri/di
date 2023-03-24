@@ -1,6 +1,7 @@
 package di
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 )
@@ -11,16 +12,17 @@ type container struct {
 
 // ValidateFlags 验证参数
 func (c *container) ValidateFlags() error {
-	var errs []error
+	var err error
 	for i := range c.constructors {
-		if err := c.constructors[i].validateFlags(); err != nil {
-			errs = append(errs, err)
+		if err2 := c.constructors[i].validateFlags(); err2 != nil {
+			if err == nil {
+				err = err2
+			} else {
+				err = errors.Join(err, err2)
+			}
 		}
 	}
-	if len(errs) > 0 {
-		return multiError(errs)
-	}
-	return nil
+	return err
 }
 
 func (c *container) build(ctx Context, typ reflect.Type) (any, error) {

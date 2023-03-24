@@ -1,6 +1,7 @@
 package di
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"sync"
@@ -67,17 +68,18 @@ func (mc *multiConstructor) AddFlags(fs *flag.FlagSet) Constructor {
 }
 
 func (mc *multiConstructor) validateFlags() error {
-	var errs []error
+	var err error
 	for i := range mc.cs {
 		err2 := mc.cs[i].validateFlags()
 		if err2 != nil {
-			errs = append(errs, err2)
+			if err == nil {
+				err = err2
+			} else {
+				err = errors.Join(err, err2)
+			}
 		}
 	}
-	if len(errs) > 0 {
-		return multiError(errs)
-	}
-	return nil
+	return err
 }
 
 func (mc *multiConstructor) build(ctx Context) (any, error) {
