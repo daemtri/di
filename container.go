@@ -7,18 +7,22 @@ import (
 )
 
 type container struct {
-	constructors map[reflect.Type]Constructor
+	constructors map[reflect.Type]map[string]Constructor
 }
 
 // ValidateFlags 验证参数
 func (c *container) ValidateFlags() error {
 	var err error
 	for i := range c.constructors {
-		if err2 := c.constructors[i].validateFlags(); err2 != nil {
-			if err == nil {
-				err = err2
-			} else {
-				err = errors.Join(err, err2)
+		m := c.constructors[i]
+		for name := range m {
+			err2 := m[name].validateFlags()
+			if err2 != nil {
+				if err == nil {
+					err = err2
+				} else {
+					err = errors.Join(err, err2)
+				}
 			}
 		}
 	}
@@ -37,12 +41,13 @@ func (c *container) build(ctx Context, typ reflect.Type) (any, error) {
 		return nil, err
 	}
 	s, ok := c.constructors[typ]
+	name := mCtx.Context.name()
 	if !ok {
-		name := mCtx.Context.name()
 		return nil, fmt.Errorf("类型%s(name=%s)不存在", reflectTypeString(typ), name)
 	}
 
-	rtn, err := s.build(mCtx)
+	// TODO: 判断是否存在
+	rtn, err := s[name].build(mCtx)
 	if err != nil {
 		return nil, fmt.Errorf("构建类型%s出错: %w", typ, err)
 	}

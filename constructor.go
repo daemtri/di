@@ -8,10 +8,12 @@ import (
 )
 
 type Constructor interface {
-	AddFlags(fs *flag.FlagSet) Constructor
-
 	validateFlags() error
 	build(ctx Context) (any, error)
+
+	AddFlags(fs *flag.FlagSet) Constructor
+	Named(name string) Constructor
+	Override() Constructor
 }
 
 type constructor struct {
@@ -49,6 +51,14 @@ func (c *constructor) build(ctx Context) (any, error) {
 
 func (c *constructor) AddFlags(fs *flag.FlagSet) Constructor {
 	c.addFlags(fs)
+	return c
+}
+
+func (c *constructor) Named(name string) Constructor {
+	return c
+}
+
+func (c *constructor) Override() Constructor {
 	return c
 }
 

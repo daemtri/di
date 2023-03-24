@@ -64,14 +64,11 @@ func MustAll[T any](ctx Context) map[string]T {
 }
 
 // Build 构建一个指定对象
-func Build[T any](reg Registry, ctx context.Context) (T, error) {
+func Build[T any](ctx context.Context) (T, error) {
 	if err := reg.ValidateFlags(); err != nil {
 		return emptyValue[T](), err
 	}
 	var c Context = wrapContext(ctx, reg.container)
-	if reg.name != "" {
-		c = c.Select(reg.name)
-	}
 	typ := reflectType[T]()
 	v, err := reg.build(c, typ)
 	if err != nil {

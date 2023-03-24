@@ -35,7 +35,7 @@ func provideWithName[T any](reg Registry, b Builder[T], sf *structFlagger) Const
 }
 
 // Provide 向容器中注册构建器
-func Provide[T any](reg Registry, b Builder[T]) Constructor {
+func Provide[T any](b Builder[T]) Constructor {
 	typ := reflectType[T]()
 	sf := &structFlagger{
 		builder: b,
