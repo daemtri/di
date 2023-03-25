@@ -140,7 +140,7 @@ func (nc *nameContext) Exists(typ reflect.Type) bool {
 	if !ok {
 		return false
 	}
-	return b.(*multiConstructor).exists(nc.nameValue)
+	return b.exists(nc.nameValue)
 }
 
 func (nc *nameContext) Must(typ reflect.Type) any {

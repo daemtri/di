@@ -18,13 +18,7 @@ func Exists[T any](ctx Context) bool {
 	if !ok {
 		return false
 	}
-	if ctx.name() != "" {
-		mtb, ok := s.(*multiConstructor)
-		if ok {
-			return mtb.exists(ctx.name())
-		}
-	}
-	return true
+	return s.exists(ctx.name())
 }
 
 // Must 只能在BuildFactory中使用
@@ -44,16 +38,9 @@ func MustAll[T any](ctx Context) map[string]T {
 	if !ok {
 		panic(fmt.Errorf("类型: %s不存在", typ))
 	}
-	mtb, ok := s.(*multiConstructor)
-	if !ok {
-		v, err := ctx.container().build(ctx, typ)
-		if err != nil {
-			panic(err)
-		}
-		return map[string]T{"": v.(T)}
-	}
-	values := make(map[string]T, len(mtb.cs))
-	for name := range mtb.cs {
+
+	values := make(map[string]T, len(s.groups))
+	for name := range s.groups {
 		v, err := ctx.container().build(ctx.Select(name), typ)
 		if err != nil {
 			panic(err)
@@ -64,7 +51,7 @@ func MustAll[T any](ctx Context) map[string]T {
 }
 
 // Build 构建一个指定对象
-func Build[T any](ctx context.Context) (T, error) {
+func Build[T any](reg Registry, ctx context.Context) (T, error) {
 	if err := reg.ValidateFlags(); err != nil {
 		return emptyValue[T](), err
 	}

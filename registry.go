@@ -4,22 +4,31 @@ import (
 	"reflect"
 )
 
-var (
-	reg = NewRegistry()
-)
-
 // Registry 持有所有注册的构造器
 type Registry struct {
 	*container
+
+	name     string
+	override bool
 }
 
 // NewRegistry 创建并初始化对象容器
 func NewRegistry() Registry {
 	return Registry{
 		container: &container{
-			constructors: make(map[reflect.Type]map[string]Constructor),
+			constructors: make(map[reflect.Type]*constructorGroup),
 		},
 	}
+}
+
+func (r Registry) Named(name string) Registry {
+	r.name = name
+	return r
+}
+
+func (r *Registry) Override() Registry {
+	r.override = true
+	return *r
 }
 
 type Value struct {
@@ -38,8 +47,11 @@ func (v Value) Builder() any {
 // VisitAll 遍历所有已经构建的构造器
 func (r Registry) Visit(fn func(v Value)) {
 	for _, c := range r.constructors {
-		for name := range c {
-			fn(Value{constructor: c[name].(*constructor), Name: name})
+		for name, v := range c.groups {
+			fn(Value{
+				Name:        name,
+				constructor: v.(*constructor),
+			})
 		}
 	}
 }

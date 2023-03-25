@@ -134,6 +134,14 @@ type structFlagger struct {
 	val reflect.Value
 }
 
+func newStructFlagger(builder any) *structFlagger {
+	return &structFlagger{
+		builder: builder,
+		typ:     reflect.TypeOf(builder),
+		val:     reflect.ValueOf(builder),
+	}
+}
+
 func (sf *structFlagger) AddFlags(fs *flag.FlagSet) {
 	if add, ok := sf.builder.(interface{ AddFlags(fs *flag.FlagSet) }); ok {
 		add.AddFlags(fs)
