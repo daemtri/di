@@ -4,21 +4,27 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
 )
 
+// requirer 定义了一个依赖
+type requirer struct {
+	typ         reflect.Type
+	name        string
+	constructor *constructor
+	parent      *requirer
+}
+
+// Context 定义了构建上下文, 用于构建对象, 以及获取依赖, 以及获取上下文
 type Context interface {
 	Unwrap() context.Context
-	Select(s string) Context
-	String() string
+	Path() string
+
 	container() *container
-	mold() reflect.Type
-	name() string
-	previousMold() *moldContext
-	currentMold() *moldContext
+	requirer() *requirer
 	isDiscard() bool
 }
 
+// baseContext 定义了基础上下文
 type baseContext struct {
 	ctx context.Context
 	c   *container
@@ -28,161 +34,73 @@ func wrapContext(ctx context.Context, c *container) *baseContext {
 	return &baseContext{ctx: ctx, c: c}
 }
 
-func (bs *baseContext) Select(name string) Context {
-	if name == "" {
-		panic("Select name不能为空")
-	}
-	return &nameContext{Context: bs, nameValue: name}
+func (bc *baseContext) Unwrap() context.Context {
+	return bc.ctx
 }
 
-func (bs *baseContext) Unwrap() context.Context {
-	return bs.ctx
+func (bc *baseContext) container() *container {
+	return bc.c
 }
 
-func (bs *baseContext) container() *container {
-	return bs.c
-}
-
-func (bs *baseContext) mold() reflect.Type {
+func (bc *baseContext) requirer() *requirer {
 	return nil
 }
 
-func (bs *baseContext) name() string {
-	return ""
-}
-
-func (bs *baseContext) String() string {
-	return ""
-}
-
-func (bs *baseContext) currentMold() *moldContext {
-	return nil
-}
-
-func (bs *baseContext) previousMold() *moldContext {
-	return nil
-}
-
-func (bs *baseContext) isDiscard() bool {
+func (bc *baseContext) isDiscard() bool {
 	return false
 }
 
-type moldContext struct {
-	Context // parent
-	typ     reflect.Type
+func (bc *baseContext) Path() string {
+	return "@root"
+}
 
-	// discard 用于标识已经构建完成，防止Context被保留指针，在控制流程外进行构建
+type requirerContext struct {
+	Context // parent
+	r       *requirer
 	discard bool
 }
 
-func withMold(parent Context, typ reflect.Type) *moldContext {
-	return &moldContext{
+func withRequirer(parent Context, r *requirer) *requirerContext {
+	return &requirerContext{
 		Context: parent,
-		typ:     typ,
+		r:       r,
 	}
 }
 
-func (mc *moldContext) mold() reflect.Type {
-	return mc.typ
+func (rc *requirerContext) requirer() *requirer {
+	return rc.r
 }
 
-func (mc *moldContext) Exists(typ reflect.Type) bool {
-	_, ok := mc.container().constructors[typ]
-	return ok
+func (rc *requirerContext) Path() string {
+	prefix := rc.Context.Path()
+	return prefix + "-->" + fmt.Sprintf("%s(%s)", rc.r.typ, rc.r.name)
 }
 
-func (mc *moldContext) Must(typ reflect.Type) any {
-	v, err := mc.container().build(mc, typ)
-	if err != nil {
-		panic(err)
-	}
-	return v
+func (rc *requirerContext) isDiscard() bool {
+	return rc.discard
 }
 
-func (mc *moldContext) Select(name string) Context {
-	if name == "" {
-		panic("Select name不能为空")
-	}
-	return &nameContext{Context: mc, nameValue: name}
-}
-
-func (mc *moldContext) currentMold() *moldContext {
-	return mc
-}
-
-func (mc *moldContext) previousMold() *moldContext {
-	return mc.Context.currentMold()
-}
-
-func (mc *moldContext) name() string {
-	return ""
-}
-
-func (mc *moldContext) String() string {
-	prefix := mc.Context.String()
-	if strings.HasSuffix(prefix, ":") {
-		return prefix + mc.typ.String()
-	}
-	return prefix + "-->" + mc.typ.String()
-}
-
-func (mc *moldContext) isDiscard() bool {
-	return mc.discard
-}
-
-type nameContext struct {
-	Context
-	nameValue string
-}
-
-func (nc *nameContext) Exists(typ reflect.Type) bool {
-	b, ok := nc.container().constructors[typ]
-	if !ok {
-		return false
-	}
-	return b.exists(nc.nameValue)
-}
-
-func (nc *nameContext) Must(typ reflect.Type) any {
-	v, err := nc.container().build(nc, typ)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-func (nc *nameContext) name() string {
-	return nc.nameValue
-}
-
-func (nc *nameContext) String() string {
-	return nc.Context.String() + "-->" + nc.nameValue + ":"
+func (rc *requirerContext) Must(p reflect.Type) any {
+	return rc.container().must(rc, p)
 }
 
 // checkContext 判断一个构建类型是否已存在
 func checkContext(ctx Context) error {
 	if contextIsConflict(ctx) {
-		return fmt.Errorf("依赖冲突: %s", ctx.String())
+		return fmt.Errorf("依赖冲突: %s", ctx.Path())
 	}
 	return nil
 }
 
 func contextIsConflict(ctx Context) bool {
-	current := ctx.currentMold()
-	typ := current.mold()
-	name := current.Context.name()
+	current := ctx.requirer()
+	typ, name := current.typ, current.name
 	for {
-		current = current.previousMold()
+		current = current.parent
 		if current == nil {
 			break
 		}
-
-		currentTyp := current.mold()
-		if currentTyp == nil {
-			break
-		}
-		currentName := current.Context.name()
-		if name == currentName && typ == currentTyp {
+		if name == current.name && typ == current.typ {
 			return true
 		}
 	}

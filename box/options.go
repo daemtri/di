@@ -1,12 +1,14 @@
 package box
 
-import "reflect"
+import (
+	"github.com/daemtri/di"
+)
 
 type options struct {
 	name          string
 	flagSetPrefix string
 
-	selects  map[reflect.Type]string
+	selects  []di.Selection
 	override bool
 }
 
@@ -14,7 +16,7 @@ func newOptions() *options {
 	return &options{
 		name:          "",
 		flagSetPrefix: "",
-		selects:       make(map[reflect.Type]string),
+		selects:       nil,
 	}
 }
 
@@ -41,8 +43,11 @@ func WithFlagPrefix(prefix string) Options {
 // WithSelect 仅供在ProvideInject时使用，可以指定注入某个类型的名字
 func WithSelect[T any](name string) Options {
 	return optionsFunc(func(o *options) {
-		typ := reflect.TypeOf(emptyValue[T]())
-		o.selects[typ] = name
+		if o.selects == nil {
+			o.selects = []di.Selection{di.Select[T](name)}
+		} else {
+			o.selects = append(o.selects, di.Select[T](name))
+		}
 	})
 }
 

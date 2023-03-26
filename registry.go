@@ -50,7 +50,7 @@ func (r Registry) Visit(fn func(v Value)) {
 		for name, v := range c.groups {
 			fn(Value{
 				Name:        name,
-				constructor: v.(*constructor),
+				constructor: v,
 			})
 		}
 	}

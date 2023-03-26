@@ -117,9 +117,6 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 }
 
 func Must[T any](ctx Context) T {
-	if st, ok := ctx.(*reflectSelectedContext); ok {
-		return di.Must[T](st.SelectContext(reflectType[T]()))
-	}
 	return di.Must[T](ctx)
 }
 

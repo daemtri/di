@@ -7,25 +7,25 @@ import (
 )
 
 type constructorGroup struct {
-	groups map[string]Constructor
+	groups map[string]*constructor
 }
 
 func newConstructorGroup() *constructorGroup {
 	return &constructorGroup{}
 }
 
-func (c *constructorGroup) add(name string, constructor Constructor) error {
+func (c *constructorGroup) add(name string, cst *constructor) error {
 	if c.groups == nil {
-		c.groups = make(map[string]Constructor)
+		c.groups = make(map[string]*constructor)
 	}
 	if _, ok := c.groups[name]; ok {
 		return fmt.Errorf("名称为%s的构建器已存在", name)
 	}
-	c.groups[name] = constructor
+	c.groups[name] = cst
 	return nil
 }
 
-func (c *constructorGroup) get(name string) (Constructor, error) {
+func (c *constructorGroup) get(name string) (*constructor, error) {
 	if c.groups == nil {
 		return nil, fmt.Errorf("名称为%s的构建器不存在", name)
 	}
@@ -80,29 +80,84 @@ func (c *container) ValidateFlags() error {
 	return err
 }
 
-func (c *container) build(ctx Context, typ reflect.Type) (any, error) {
+func (c *container) build(ctx Context, typ reflect.Type, name string) (any, error) {
 	if ctx.isDiscard() {
 		return nil, fmt.Errorf("无法在构造函数外构建 %s, Context已失效", typ)
 	}
-	mCtx := withMold(ctx, typ)
+	s, ok := c.constructors[typ]
+	if !ok {
+		return nil, fmt.Errorf("类型%s(name=%s)不存在", reflectTypeString(typ), name)
+	}
+	cst, err := s.get(name)
+	if err != nil {
+		return nil, fmt.Errorf("类型%s(name=%s)不存在: %w", reflectTypeString(typ), name, err)
+	}
+	mCtx := withRequirer(ctx, &requirer{
+		typ:         typ,
+		name:        name,
+		constructor: cst,
+		parent:      ctx.requirer(),
+	})
 	defer func() {
 		mCtx.discard = true
 	}()
 	if err := checkContext(mCtx); err != nil {
 		return nil, err
 	}
-	s, ok := c.constructors[typ]
-	name := mCtx.Context.name()
-	if !ok {
-		return nil, fmt.Errorf("类型%s(name=%s)不存在", reflectTypeString(typ), name)
-	}
-	constructor, err := s.get(name)
-	if err != nil {
-		return nil, fmt.Errorf("类型%s(name=%s)不存在: %w", reflectTypeString(typ), name, err)
-	}
-	rtn, err := constructor.build(mCtx)
+	rtn, err := cst.build(mCtx)
 	if err != nil {
 		return nil, fmt.Errorf("构建类型%s出错: %w", typ, err)
 	}
 	return rtn, nil
+}
+
+func (c *container) exists(ctx Context, p reflect.Type) bool {
+	s, ok := c.constructors[p]
+	if !ok {
+		return false
+	}
+
+	return s.exists(ctx.requirer().constructor.selections[p])
+}
+
+func (c *container) must(ctx Context, p reflect.Type) any {
+	v, err := c.build(ctx, p, ctx.requirer().constructor.selections[p])
+	if err != nil {
+		panic(fmt.Errorf("must 构建失败： %s", err))
+	}
+	return v
+}
+
+func (c *container) inject(ctx Context, cst *constructor) error {
+	refTyp := reflect.TypeOf(cst.builder)
+	refVal := reflect.ValueOf(cst.builder)
+	if refTyp.Kind() == reflect.Pointer {
+		refTyp = refTyp.Elem()
+		refVal = refVal.Elem()
+	}
+	if refTyp.Kind() != reflect.Struct {
+		return nil
+	}
+	for i := 0; i < refTyp.NumField(); i++ {
+		if !refVal.Field(i).CanSet() {
+			continue
+		}
+		injectType, ok := refTyp.Field(i).Tag.Lookup("inject")
+		if !ok {
+			continue
+		}
+		if injectType == "must" {
+			v := c.must(ctx, refTyp.Field(i).Type)
+			refVal.Field(i).Set(reflect.ValueOf(v))
+			continue
+		}
+		if injectType == "exists" {
+			if c.exists(ctx, refTyp.Field(i).Type) {
+				v := c.must(ctx, refTyp.Field(i).Type)
+				refVal.Field(i).Set(reflect.ValueOf(v))
+			}
+			continue
+		}
+	}
+	return nil
 }
