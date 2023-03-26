@@ -1,6 +1,7 @@
 package di
 
 import (
+	"context"
 	"testing"
 )
 
@@ -11,10 +12,10 @@ func Test_Inject(t *testing.T) {
 	type tester struct {
 		opt *testOption
 	}
-	newTester := func(ctx Context, opt *testOption) (*tester, error) {
+	newTester := func(ctx context.Context, opt *testOption) (*tester, error) {
 		return &tester{opt: opt}, nil
 	}
-	ib := Inject[*tester, *testOption](newTester)
+	ib := Inject(newTester)
 	x, err := ib.Build(nil)
 	if err != nil {
 		t.Errorf("build出错: %s", err)

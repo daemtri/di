@@ -1,6 +1,7 @@
 package box
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -29,7 +30,7 @@ func provide[T any](b Builder[T], opts ...Options) {
 	}
 }
 
-func ProvideFunc[T any](fn func(ctx Context) (T, error), opts ...Options) {
+func ProvideFunc[T any](fn func(ctx context.Context) (T, error), opts ...Options) {
 	provide[T](di.Func(fn), opts...)
 }
 
@@ -50,7 +51,7 @@ func Provide[T any](fn any, opts ...Options) {
 		}, opts...)
 		return
 	}
-	if f, ok := fn.(func(ctx Context) (T, error)); ok {
+	if f, ok := fn.(func(ctx context.Context) (T, error)); ok {
 		ProvideFunc(f, opts...)
 		return
 	}

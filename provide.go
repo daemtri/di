@@ -1,11 +1,12 @@
 package di
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 )
 
-func provide(reg Registry, typ reflect.Type, flaggerBuilder any, buildFunc func(Context) (any, error)) Constructor {
+func provide(reg Registry, typ reflect.Type, flaggerBuilder any, buildFunc func(context.Context) (any, error)) Constructor {
 	sf := newStructFlagger(flaggerBuilder)
 	if group, ok := reg.constructors[typ]; ok {
 		if group.exists(reg.name) {
@@ -30,7 +31,7 @@ func provide(reg Registry, typ reflect.Type, flaggerBuilder any, buildFunc func(
 
 func Provide[T any](reg Registry, b Builder[T]) Constructor {
 	typ := reflectType[T]()
-	return provide(reg, typ, b, func(ctx Context) (any, error) {
+	return provide(reg, typ, b, func(ctx context.Context) (any, error) {
 		return b.Build(ctx)
 	})
 }

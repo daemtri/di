@@ -3,15 +3,13 @@ package httpservice
 import (
 	"context"
 	"net/http"
-
-	"github.com/daemtri/di"
 )
 
 type HttpServiceOptions struct {
 	Addr string `flag:"addr" default:":8080" usage:"http service listen address"`
 }
 
-func (hso *HttpServiceOptions) Build(ctx di.Context) (*HttpService, error) {
+func (hso *HttpServiceOptions) Build(ctx context.Context) (*HttpService, error) {
 	return &HttpService{
 		addr: hso.Addr,
 		server: http.Server{

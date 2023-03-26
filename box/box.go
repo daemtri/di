@@ -43,8 +43,6 @@ func FlagSet(name ...string) *flag.FlagSet {
 	return nfs.FlagSet(name...)
 }
 
-type Context = di.Context
-
 // Retrofiter 定义了一个可以重新构建对象的接口
 type Retrofiter interface {
 	Retrofit() error

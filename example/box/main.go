@@ -89,7 +89,7 @@ func main() {
 	// 信号处理
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
-	server, err := box.Build[*HttpServer](ctx, box.UseInit(func(ctx box.Context) error {
+	server, err := box.Build[*HttpServer](ctx, box.UseInit(func(ctx context.Context) error {
 		slog.Info("这里在build之前执行,可以做一些初始的工作，比如日志库，远程配置等等")
 		return nil
 	}))

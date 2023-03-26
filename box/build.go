@@ -19,17 +19,17 @@ type bBuilderFunc[T any] struct {
 	BBuilder[T]
 }
 
-func (b *bBuilderFunc[T]) Build(ctx Context) (T, error) {
-	return b.BBuilder.Build(ctx.Unwrap())
+func (b *bBuilderFunc[T]) Build(ctx context.Context) (T, error) {
+	return b.BBuilder.Build(ctx)
 }
 
 type Builder[T any] interface {
-	Build(ctx Context) (T, error)
+	Build(ctx context.Context) (T, error)
 }
 
 type buildOptions struct {
 	name string
-	init func(ctx Context) error
+	init func(ctx context.Context) error
 }
 type BuildOption interface {
 	apply(o *buildOptions)
@@ -45,9 +45,9 @@ func Select(name string) BuildOption {
 	})
 }
 
-type multiInit []func(Context) error
+type multiInit []func(context.Context) error
 
-func (m multiInit) init(ctx Context) error {
+func (m multiInit) init(ctx context.Context) error {
 	for i := range m {
 		if err := m[i](ctx); err != nil {
 			return fmt.Errorf("运行(%T)返回错误: %w", m[i], err)
@@ -56,8 +56,8 @@ func (m multiInit) init(ctx Context) error {
 	return nil
 }
 
-func UseInit(fn ...func(Context) error) BuildOption {
-	var initFunc func(Context) error
+func UseInit(fn ...func(context.Context) error) BuildOption {
+	var initFunc func(context.Context) error
 	if len(fn) == 1 {
 		initFunc = fn[0]
 	} else {
@@ -116,15 +116,15 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 	return di.Build[T](reg, ctx)
 }
 
-func Must[T any](ctx Context) T {
+func Must[T any](ctx context.Context) T {
 	return di.Must[T](ctx)
 }
 
-func MustAll[T any](ctx Context) map[string]T {
+func MustAll[T any](ctx context.Context) map[string]T {
 	return di.MustAll[T](ctx)
 }
 
 // Exists 判断类型T是否已经在容器内提供了
-func Exists[T any](ctx Context) bool {
+func Exists[T any](ctx context.Context) bool {
 	return di.Exists[T](ctx)
 }

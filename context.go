@@ -6,6 +6,22 @@ import (
 	"reflect"
 )
 
+type contextKey struct {
+	name string
+}
+
+var (
+	ctxKey = &contextKey{name: "di"}
+)
+
+func withContext(ctx context.Context, c Context) context.Context {
+	return context.WithValue(ctx, ctxKey, c)
+}
+
+func getContext(ctx context.Context) Context {
+	return ctx.Value(ctxKey).(Context)
+}
+
 // requirer 定义了一个依赖
 type requirer struct {
 	typ         reflect.Type
@@ -16,7 +32,6 @@ type requirer struct {
 
 // Context 定义了构建上下文, 用于构建对象, 以及获取依赖, 以及获取上下文
 type Context interface {
-	Unwrap() context.Context
 	Path() string
 
 	container() *container
@@ -26,16 +41,11 @@ type Context interface {
 
 // baseContext 定义了基础上下文
 type baseContext struct {
-	ctx context.Context
-	c   *container
+	c *container
 }
 
-func wrapContext(ctx context.Context, c *container) *baseContext {
-	return &baseContext{ctx: ctx, c: c}
-}
-
-func (bc *baseContext) Unwrap() context.Context {
-	return bc.ctx
+func newBaseContext(c *container) *baseContext {
+	return &baseContext{c: c}
 }
 
 func (bc *baseContext) container() *container {
@@ -80,8 +90,8 @@ func (rc *requirerContext) isDiscard() bool {
 	return rc.discard
 }
 
-func (rc *requirerContext) Must(p reflect.Type) any {
-	return rc.container().must(rc, p)
+func (rc *requirerContext) Must(ctx context.Context, p reflect.Type) any {
+	return rc.container().must(ctx, p)
 }
 
 // checkContext 判断一个构建类型是否已存在

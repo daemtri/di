@@ -5,12 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
-
-	"github.com/daemtri/di/box"
 )
 
 var (
-	ctxType    = reflect.TypeOf(func(box.Context) {}).In(0)
 	stdCtxType = reflect.TypeOf(func(context.Context) {}).In(0)
 	flagAdder  = reflect.TypeOf(func(interface{ AddFlags(fs *flag.FlagSet) }) {}).In(0)
 )
@@ -97,7 +94,7 @@ type reflectBuilder interface {
 	Must(p reflect.Type) any
 }
 
-func (ib *injectBuilder) Build(ctx box.Context) (any, error) {
+func (ib *injectBuilder) Build(ctx context.Context) (any, error) {
 	defer func() {
 		if e := recover(); e != nil {
 			panic(fmt.Errorf("build(%s): %s", ib.pType, e))
@@ -109,12 +106,8 @@ func (ib *injectBuilder) Build(ctx box.Context) (any, error) {
 			inValues = append(inValues, reflect.ValueOf(ib.Option))
 			continue
 		}
-		if ib.fnType.In(i) == ctxType {
-			inValues = append(inValues, reflect.ValueOf(ctx))
-			continue
-		}
 		if ib.fnType.In(i) == stdCtxType {
-			inValues = append(inValues, reflect.ValueOf(ctx.Unwrap()))
+			inValues = append(inValues, reflect.ValueOf(ctx))
 			continue
 		}
 		v := ctx.(reflectBuilder).Must(ib.fnType.In(i))

@@ -1,6 +1,7 @@
 package di
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -80,8 +81,9 @@ func (c *container) ValidateFlags() error {
 	return err
 }
 
-func (c *container) build(ctx Context, typ reflect.Type, name string) (any, error) {
-	if ctx.isDiscard() {
+func (c *container) build(ctx context.Context, typ reflect.Type, name string) (any, error) {
+	localCtx := getContext(ctx)
+	if localCtx.isDiscard() {
 		return nil, fmt.Errorf("无法在构造函数外构建 %s, Context已失效", typ)
 	}
 	s, ok := c.constructors[typ]
@@ -92,43 +94,44 @@ func (c *container) build(ctx Context, typ reflect.Type, name string) (any, erro
 	if err != nil {
 		return nil, fmt.Errorf("类型%s(name=%s)不存在: %w", reflectTypeString(typ), name, err)
 	}
-	mCtx := withRequirer(ctx, &requirer{
+	newLocalCtx := withRequirer(localCtx, &requirer{
 		typ:         typ,
 		name:        name,
 		constructor: cst,
-		parent:      ctx.requirer(),
+		parent:      localCtx.requirer(),
 	})
 	defer func() {
-		mCtx.discard = true
+		newLocalCtx.discard = true
 	}()
-	if err := checkContext(mCtx); err != nil {
+	if err := checkContext(newLocalCtx); err != nil {
 		return nil, err
 	}
-	rtn, err := cst.build(mCtx)
+	rtn, err := cst.build(withContext(ctx, newLocalCtx))
 	if err != nil {
 		return nil, fmt.Errorf("构建类型%s出错: %w", typ, err)
 	}
 	return rtn, nil
 }
 
-func (c *container) exists(ctx Context, p reflect.Type) bool {
+func (c *container) exists(ctx context.Context, p reflect.Type) bool {
 	s, ok := c.constructors[p]
 	if !ok {
 		return false
 	}
-
-	return s.exists(ctx.requirer().constructor.selections[p])
+	localCtx := getContext(ctx)
+	return s.exists(localCtx.requirer().constructor.selections[p])
 }
 
-func (c *container) must(ctx Context, p reflect.Type) any {
-	v, err := c.build(ctx, p, ctx.requirer().constructor.selections[p])
+func (c *container) must(ctx context.Context, p reflect.Type) any {
+	localCtx := getContext(ctx)
+	v, err := c.build(ctx, p, localCtx.requirer().constructor.selections[p])
 	if err != nil {
 		panic(fmt.Errorf("must 构建失败： %s", err))
 	}
 	return v
 }
 
-func (c *container) inject(ctx Context, cst *constructor) error {
+func (c *container) inject(ctx context.Context, cst *constructor) error {
 	refTyp := reflect.TypeOf(cst.builder)
 	refVal := reflect.ValueOf(cst.builder)
 	if refTyp.Kind() == reflect.Pointer {
@@ -138,6 +141,7 @@ func (c *container) inject(ctx Context, cst *constructor) error {
 	if refTyp.Kind() != reflect.Struct {
 		return nil
 	}
+
 	for i := 0; i < refTyp.NumField(); i++ {
 		if !refVal.Field(i).CanSet() {
 			continue

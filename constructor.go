@@ -1,6 +1,7 @@
 package di
 
 import (
+	"context"
 	"flag"
 	"reflect"
 	"sync"
@@ -14,7 +15,7 @@ type Selection struct {
 // Constructor 定义了一个构建器
 type Constructor interface {
 	validateFlags() error
-	build(ctx Context) (any, error)
+	build(ctx context.Context) (any, error)
 
 	// Designate 为构建器指定一个或多个选择器
 	Designate(...Selection) Constructor
@@ -33,7 +34,7 @@ type constructor struct {
 
 	addFlags          func(fs *flag.FlagSet)
 	validateFlagsFunc func() error
-	buildFunc         func(ctx Context) (any, error)
+	buildFunc         func(ctx context.Context) (any, error)
 
 	selections map[reflect.Type]string
 
@@ -44,13 +45,13 @@ func (c *constructor) validateFlags() error {
 	return c.validateFlagsFunc()
 }
 
-func (c *constructor) build(ctx Context) (any, error) {
+func (c *constructor) build(ctx context.Context) (any, error) {
 	if c.instance != nil {
 		return c.instance, nil
 	}
 	if c.mux.TryLock() {
 		defer c.mux.Unlock()
-		if err := ctx.container().inject(ctx, c); err != nil {
+		if err := getContext(ctx).container().inject(ctx, c); err != nil {
 			return nil, err
 		}
 		result, err := c.buildFunc(ctx)

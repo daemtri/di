@@ -11,7 +11,6 @@ import (
 
 var (
 	errType    = reflect.TypeOf(func() error { return nil }).Out(0)
-	ctxType    = reflect.TypeOf(func(Context) {}).In(0)
 	stdCtxType = reflect.TypeOf(func(context.Context) {}).In(0)
 	flagAdder  = reflect.TypeOf(func(interface{ AddFlags(fs *flag.FlagSet) }) {}).In(0)
 )
@@ -53,7 +52,7 @@ func isFlagSetProvider(v reflect.Type) bool {
 	return false
 }
 
-func OptionFunc[T, K any](fn func(ctx Context, option K) (T, error)) *di.InjectBuilder[T, K] {
+func OptionFunc[T, K any](fn func(ctx context.Context, option K) (T, error)) *di.InjectBuilder[T, K] {
 	return di.Inject(fn)
 }
 
@@ -118,7 +117,7 @@ type injectBuilder[T any] struct {
 	fnType      reflect.Type
 }
 
-func (ib *injectBuilder[T]) Build(ctx Context) (T, error) {
+func (ib *injectBuilder[T]) Build(ctx context.Context) (T, error) {
 	defer func() {
 		if e := recover(); e != nil {
 			t := reflectType[T]()
@@ -131,12 +130,8 @@ func (ib *injectBuilder[T]) Build(ctx Context) (T, error) {
 			inValues = append(inValues, reflect.ValueOf(ib.Option))
 			continue
 		}
-		if ib.fnType.In(i) == ctxType {
-			inValues = append(inValues, reflect.ValueOf(ctx))
-			continue
-		}
 		if ib.fnType.In(i) == stdCtxType {
-			inValues = append(inValues, reflect.ValueOf(ctx.Unwrap()))
+			inValues = append(inValues, reflect.ValueOf(ctx))
 			continue
 		}
 		v := ctx.(interface{ Must(reflect.Type) any }).Must(ib.fnType.In(i))
