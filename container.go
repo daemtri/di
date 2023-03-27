@@ -122,9 +122,26 @@ func (c *container) exists(ctx context.Context, p reflect.Type) bool {
 	return s.exists(localCtx.requirer().constructor.selections[p])
 }
 
-func (c *container) must(ctx context.Context, p reflect.Type) any {
+func (c *container) mustAll(ctx context.Context, p reflect.Type) map[string]any {
 	localCtx := getContext(ctx)
-	v, err := c.build(ctx, p, localCtx.requirer().constructor.selections[p])
+	cst, ok := c.constructors[p]
+	if !ok {
+		panic(fmt.Errorf("类型%s不存在", reflectTypeString(p)))
+	}
+	vv := make(map[string]any, len(cst.groups))
+	for name := range cst.groups {
+		v, err := c.build(ctx, p, localCtx.requirer().constructor.selections[p])
+		if err != nil {
+			panic(fmt.Errorf("must 构建失败： %s", err))
+		}
+		vv[name] = v
+	}
+
+	return vv
+}
+
+func (c *container) must(ctx context.Context, p reflect.Type) any {
+	v, err := c.build(ctx, p, getTypeNameFromContext(ctx, p))
 	if err != nil {
 		panic(fmt.Errorf("must 构建失败： %s", err))
 	}

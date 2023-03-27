@@ -90,6 +90,14 @@ func (rc *requirerContext) isDiscard() bool {
 	return rc.discard
 }
 
+func (rc *requirerContext) Exists(ctx context.Context, typ reflect.Type) bool {
+	return rc.container().exists(ctx, typ)
+}
+
+func (rc *requirerContext) MustAll(ctx context.Context, typ reflect.Type) map[string]any {
+	return rc.container().mustAll(ctx, typ)
+}
+
 func (rc *requirerContext) Must(ctx context.Context, p reflect.Type) any {
 	return rc.container().must(ctx, p)
 }
@@ -115,4 +123,12 @@ func contextIsConflict(ctx Context) bool {
 		}
 	}
 	return false
+}
+
+func getTypeNameFromContext(ctx context.Context, typ reflect.Type) string {
+	secs := getContext(ctx).requirer().constructor.selections
+	if secs == nil {
+		return ""
+	}
+	return secs[typ]
 }

@@ -16,18 +16,8 @@ func provide[T any](b Builder[T], opts ...Options) {
 	for i := range opts {
 		opts[i].apply(opt)
 	}
-	reg := defaultRegistrar
-	if opt.name != "" {
-		reg = reg.Named(opt.name)
-	}
-	if opt.override {
-		reg = reg.Override()
-	}
 
-	c := di.Provide[T](reg, b).AddFlags(nfs.FlagSet(opt.flagSetPrefix))
-	if opt.selects != nil {
-		c.Designate(opt.selects...)
-	}
+	di.Provide[T](b, opt.opts...)
 }
 
 func ProvideFunc[T any](fn func(ctx context.Context) (T, error), opts ...Options) {

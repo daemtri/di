@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/daemtri/di"
+	"github.com/daemtri/di/object"
 	"github.com/joho/godotenv"
 	"golang.org/x/exp/slog"
 )
@@ -95,7 +96,6 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 		}
 		os.Exit(0)
 	}
-	reg := defaultRegistrar
 
 	if opt.name != "" {
 		reg = defaultRegistrar.Named(opt.name)
@@ -105,7 +105,7 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 			beforeFunc: opt.init,
 		})
 		nfsIsParsed = true
-		agent, err := di.Build[*initializer[T]](reg, ctx)
+		agent, err := di.Build[*initializer[T]](ctx)
 		if err != nil {
 			return emptyValue[T](), err
 		}
@@ -113,18 +113,18 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 	}
 	nfsIsParsed = true
 
-	return di.Build[T](reg, ctx)
+	return di.Build[T](ctx)
 }
 
 func Must[T any](ctx context.Context) T {
-	return di.Must[T](ctx)
+	return object.Must[T](ctx)
 }
 
 func MustAll[T any](ctx context.Context) map[string]T {
-	return di.MustAll[T](ctx)
+	return object.MustAll[T](ctx)
 }
 
 // Exists 判断类型T是否已经在容器内提供了
 func Exists[T any](ctx context.Context) bool {
-	return di.Exists[T](ctx)
+	return object.Exists[T](ctx)
 }

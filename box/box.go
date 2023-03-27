@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	defaultRegistrar = di.NewRegistry()
+	defaultRegistrar = di.GetRegistry()
 
 	nfs         = flagx.NamedFlagSets{}
 	nfsIsParsed bool
