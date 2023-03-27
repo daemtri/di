@@ -16,7 +16,7 @@ func Func[T any](fn func(ctx context.Context) (T, error)) BuildFunc[T] {
 }
 
 type InjectBuilder[T any, K any] struct {
-	Opt K `flag:",nested"`
+	Opt K `flag:""`
 	fn  func(context.Context, K) (T, error)
 }
 

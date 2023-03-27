@@ -81,7 +81,7 @@ func Inject(fn any) *injectBuilder {
 }
 
 type injectBuilder struct {
-	Option any `flag:",nested"`
+	Option any `flag:""`
 
 	pType       reflect.Type
 	optionIndex int

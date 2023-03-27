@@ -110,7 +110,7 @@ func Inject[T any](fn any, opt any) Builder[T] {
 }
 
 type injectBuilder[T any] struct {
-	Option any `flag:",nested"`
+	Option any `flag:""`
 
 	optionIndex int
 	fnValue     reflect.Value

@@ -5,16 +5,29 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
-	"strings"
 )
 
-func parseFlagTag(tag reflect.StructTag) (name, def, usage string, isNested bool) {
-	names := tag.Get("flag")
-	namesArr := strings.SplitN(names, ",", 2)
-	if len(namesArr) == 2 {
-		isNested = namesArr[1] == "nested"
+func parseFlagTag(tag reflect.StructTag) (name, def, usage string) {
+	return tag.Get("flag"), tag.Get("default"), tag.Get("usage")
+}
+
+func isNested(fieldTyp reflect.StructField) bool {
+	if fieldTyp.Anonymous {
+		return true
 	}
-	return namesArr[0], tag.Get("default"), tag.Get("usage"), isNested
+	typ := fieldTyp.Type
+	if typ.Kind() != reflect.Struct {
+		return false
+	}
+	for i := 0; i < typ.NumField(); i++ {
+		if !typ.Field(i).IsExported() {
+			continue
+		}
+		if _, ok := typ.Field(i).Tag.Lookup("flag"); ok {
+			return true
+		}
+	}
+	return false
 }
 
 type prefix struct {
@@ -59,9 +72,9 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 		if !fType.Field(i).IsExported() {
 			continue
 		}
-		name, def, usage, isNested := parseFlagTag(fType.Field(i).Tag)
+		name, def, usage := parseFlagTag(fType.Field(i).Tag)
 
-		if fType.Field(i).Anonymous || isNested {
+		if isNested(fType.Field(i)) {
 			npfx := pfx.concat(name, usage)
 			if fType.Field(i).Type.Kind() == reflect.Interface {
 				if !fValue.Field(i).IsNil() {
