@@ -12,8 +12,8 @@ func parseFlagTag(tag reflect.StructTag) (name, def, usage string) {
 }
 
 func isNested(fieldTyp reflect.StructField) bool {
-	if fieldTyp.Anonymous {
-		return true
+	if _, ok := fieldTyp.Tag.Lookup("flag"); !ok {
+		return false
 	}
 	typ := fieldTyp.Type
 	if typ.Kind() != reflect.Struct {
