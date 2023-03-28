@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/daemtri/di"
-	"github.com/daemtri/di/object"
+	"github.com/daemtri/di/container"
 	"github.com/joho/godotenv"
 	"golang.org/x/exp/slog"
 )
@@ -95,9 +95,5 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 }
 
 func Invoke[T any](ctx context.Context) T {
-	return object.Invoke[T](ctx)
-}
-
-func InvokeAll[T any](ctx context.Context) map[string]T {
-	return object.InvokeAll[T](ctx)
+	return container.Invoke[T](ctx)
 }

@@ -7,7 +7,7 @@ import (
 	"reflect"
 
 	"github.com/daemtri/di"
-	"github.com/daemtri/di/object"
+	"github.com/daemtri/di/container"
 )
 
 var (
@@ -135,7 +135,7 @@ func (ib *injectBuilder[T]) Build(ctx context.Context) (T, error) {
 			inValues = append(inValues, reflect.ValueOf(ctx))
 			continue
 		}
-		v := ctx.Value(object.ContextKey).(object.Container).Invoke(ctx, ib.fnType.In(i))
+		v := ctx.Value(container.ContextKey).(container.Interface).Invoke(ctx, ib.fnType.In(i))
 		inValues = append(inValues, reflect.ValueOf(v))
 	}
 

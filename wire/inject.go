@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/daemtri/di/object"
+	"github.com/daemtri/di/container"
 )
 
 var (
@@ -106,7 +106,7 @@ func (b *anyFunctionBuilder) Build(ctx context.Context) (any, error) {
 			inValues = append(inValues, reflect.ValueOf(ctx))
 			continue
 		}
-		v := ctx.Value(object.ContextKey).(object.Container).Invoke(ctx, b.fnType.In(i))
+		v := ctx.Value(container.ContextKey).(container.Interface).Invoke(ctx, b.fnType.In(i))
 		inValues = append(inValues, reflect.ValueOf(v))
 	}
 
