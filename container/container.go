@@ -6,6 +6,7 @@ import (
 )
 
 var (
+	// ContextKey is the key used to store the container in the context.
 	ContextKey = &struct{ name string }{name: "di.container.ContextKey"}
 )
 
