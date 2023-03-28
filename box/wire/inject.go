@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	errType    = reflect.TypeOf(func() error { return nil }).Out(0)
 	stdCtxType = reflect.TypeOf(func(context.Context) {}).In(0)
 	flagAdder  = reflect.TypeOf(func(interface{ AddFlags(fs *flag.FlagSet) }) {}).In(0)
 )
@@ -57,9 +56,6 @@ func newAnyFunctionBuilder(fn any) *anyFunctionBuilder {
 		panic("provideInject must return one parameters: T")
 	}
 	targetType := fnType.Out(0)
-	if fnType.Out(1) != errType {
-		panic(fmt.Errorf("the second return value of the ProvideInject function must be %s", errType))
-	}
 	ib := &anyFunctionBuilder{
 		targetType: targetType,
 		fnType:     fnType,
