@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/daemtri/di/object"
+	dicontainer "github.com/daemtri/di/container"
 )
 
 func withContext(ctx context.Context, c Context) context.Context {
-	return context.WithValue(ctx, object.ContextKey, c)
+	return context.WithValue(ctx, dicontainer.ContextKey, c)
 }
 
 func getContext(ctx context.Context) Context {
-	return ctx.Value(object.ContextKey).(Context)
+	return ctx.Value(dicontainer.ContextKey).(Context)
 }
 
 // requirer 定义了一个依赖

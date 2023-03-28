@@ -12,6 +12,7 @@ type options struct {
 	override   bool
 	flagset    *flag.FlagSet
 	selections map[reflect.Type]string
+	implements map[reflect.Type]reflect.Type
 }
 
 func resolveOptions(opts ...Option) options {
@@ -56,6 +57,25 @@ func WithSelect[T any](name string) Option {
 			opts.selections = make(map[reflect.Type]string)
 		}
 		opts.selections[reflectType[T]()] = name
+	})
+}
+
+// WithImplement use to specify the implementation of interface
+// the first type is interface, the second type is implementation
+func WithImplement[I any, T any]() Option {
+	return optionFunc(func(opts *options) {
+		if opts.implements == nil {
+			opts.implements = make(map[reflect.Type]reflect.Type)
+		}
+		iType := reflectType[I]()
+		tType := reflectType[T]()
+		if iType.Kind() != reflect.Interface {
+			panic(fmt.Errorf("type: %s is not interface", iType))
+		}
+		if !tType.Implements(iType) {
+			panic(fmt.Errorf("type: %s does not implement interface: %s", tType, iType))
+		}
+		opts.implements[iType] = tType
 	})
 }
 

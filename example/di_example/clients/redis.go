@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/daemtri/di/object"
+	"github.com/daemtri/di/container"
 )
 
 type RedisOptions struct {
@@ -15,7 +15,7 @@ type RedisOptions struct {
 func (ro *RedisOptions) Build(ctx context.Context) (*RedisClient, error) {
 	fmt.Println("build redis client", ro.Addr, ro.Port)
 	// 这里可以用redis驱动的client
-	m := object.Invoke[*MysqlClient](ctx)
+	m := container.Invoke[*MysqlClient](ctx)
 	fmt.Println("mysql client", m)
 	return &RedisClient{client: nil}, nil
 }
