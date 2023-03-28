@@ -7,6 +7,8 @@ import (
 	"reflect"
 
 	"github.com/daemtri/di"
+	"github.com/daemtri/di/object"
+	"github.com/davecgh/go-spew/spew"
 )
 
 var (
@@ -61,21 +63,21 @@ func Inject[T any](fn any, opt any) Builder[T] {
 
 	// 判断fn合法性
 	if fnType.Kind() != reflect.Func {
-		panic("ProvideInject只支持函数类型")
+		panic("ProvideInject only supports function types")
 	}
 	if fnType.NumOut() != 2 {
-		panic("ProvideInject 函数必须返回2个参数: (T,error) 或者 (X, error),X 实现了T接口")
+		panic("provideInject must return two parameters: (T,error) or (X,error), where X implements T")
 	}
 	pTyp := reflectType[T]()
 	if pTyp.Kind() == reflect.Interface {
 		if !fnType.Out(0).Implements(pTyp) {
-			panic(fmt.Errorf("ProvideInject 函数返回值类型 %s 未实现 %s", fnType.Out(0), pTyp))
+			panic(fmt.Errorf("ProvideInject return type %s not implemented %s", fnType.Out(0), pTyp))
 		}
 	} else if pTyp != fnType.Out(0) {
-		panic(fmt.Errorf("ProvideInject 函数返回值类型 %s != %s", fnType.Out(0), pTyp))
+		panic(fmt.Errorf("ProvideInject return value type %s != %s", fnType.Out(0), pTyp))
 	}
 	if fnType.Out(1) != errType {
-		panic(fmt.Errorf("ProvideInject 函数第二个返回值必须为 %s", errType))
+		panic(fmt.Errorf("the second return value of the ProvideInject function must be %s", errType))
 	}
 
 	ib := &injectBuilder[T]{
@@ -118,6 +120,7 @@ type injectBuilder[T any] struct {
 }
 
 func (ib *injectBuilder[T]) Build(ctx context.Context) (T, error) {
+	spew.Dump(ib.Option)
 	defer func() {
 		if e := recover(); e != nil {
 			t := reflectType[T]()
@@ -134,7 +137,7 @@ func (ib *injectBuilder[T]) Build(ctx context.Context) (T, error) {
 			inValues = append(inValues, reflect.ValueOf(ctx))
 			continue
 		}
-		v := ctx.(interface{ Must(reflect.Type) any }).Must(ib.fnType.In(i))
+		v := ctx.Value(object.ContextKey).(object.Container).Invoke(ctx, ib.fnType.In(i))
 		inValues = append(inValues, reflect.ValueOf(v))
 	}
 

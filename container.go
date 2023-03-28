@@ -108,7 +108,7 @@ func (c *container) build(ctx context.Context, typ reflect.Type, name string) (a
 	}
 	rtn, err := cst.build(withContext(ctx, newLocalCtx))
 	if err != nil {
-		return nil, fmt.Errorf("构建类型%s出错: %w", typ, err)
+		return nil, fmt.Errorf("Build type %s error: %w", typ, err)
 	}
 	return rtn, nil
 }
@@ -126,13 +126,13 @@ func (c *container) mustAll(ctx context.Context, p reflect.Type) map[string]any 
 	localCtx := getContext(ctx)
 	cst, ok := c.constructors[p]
 	if !ok {
-		panic(fmt.Errorf("类型%s不存在", reflectTypeString(p)))
+		panic(fmt.Errorf("the type %s does not exist", reflectTypeString(p)))
 	}
 	vv := make(map[string]any, len(cst.groups))
 	for name := range cst.groups {
 		v, err := c.build(ctx, p, localCtx.requirer().constructor.selections[p])
 		if err != nil {
-			panic(fmt.Errorf("must 构建失败： %s", err))
+			panic(fmt.Errorf("must build failed: %s", err))
 		}
 		vv[name] = v
 	}
@@ -143,7 +143,7 @@ func (c *container) mustAll(ctx context.Context, p reflect.Type) map[string]any 
 func (c *container) must(ctx context.Context, p reflect.Type) any {
 	v, err := c.build(ctx, p, getTypeNameFromContext(ctx, p))
 	if err != nil {
-		panic(fmt.Errorf("must 构建失败： %s", err))
+		panic(fmt.Errorf("must build failed: %s", err))
 	}
 	return v
 }

@@ -13,15 +13,13 @@ import (
 
 func main() {
 	nfs := flagx.NamedFlagSets{}
-	di.Provide[*clients.RedisClient](
-		&clients.RedisOptions{},
-		di.WithFlagset(nfs.FlagSet("redis")),
-	)
+	di.Provide[*httpservice.HttpService](&httpservice.HttpServiceOptions{}, di.WithFlagset(nfs.FlagSet("httpservice")))
+	di.Provide[*clients.RedisClient](&clients.RedisOptions{}, di.WithFlagset(nfs.FlagSet("redis")))
+	di.Provide[*clients.MysqlClient](&clients.MysqlOptions{}, di.WithFlagset(nfs.FlagSet("mysql")))
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer cancel()
-	server, err := di.Build[*httpservice.HttpService](ctx,
-		&httpservice.HttpServiceOptions{},
-		di.WithFlagset(nfs.FlagSet("httpservice")))
+	server, err := di.Build[*httpservice.HttpService](ctx)
 	if err != nil {
 		panic(err)
 	}

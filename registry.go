@@ -12,12 +12,12 @@ func GetRegistry() Registry {
 	return reg
 }
 
-// Registry 持有所有注册的构造器
+// Registry holds all the registered constructors
 type Registry struct {
 	*container
 }
 
-// NewRegistry 创建并初始化对象容器
+// NewRegistry create and initialize object container
 func NewRegistry() Registry {
 	return Registry{
 		container: &container{
@@ -39,7 +39,7 @@ func (v Value) Builder() any {
 	return v.constructor.builder
 }
 
-// VisitAll 遍历所有已经构建的构造器
+// VisitAll Iterate all the built constructors
 func (r Registry) Visit(fn func(v Value)) {
 	for _, c := range r.constructors {
 		for name, v := range c.groups {

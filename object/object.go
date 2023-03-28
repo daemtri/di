@@ -6,32 +6,24 @@ import (
 )
 
 var (
-	ContextKey = &contextKey{name: "object container"}
+	ContextKey = &struct{ name string }{name: "di.object.ContextKey"}
 )
 
-type contextKey struct {
-	name string
-}
+// ALL 定义了一个通配符, 用于获取所有的依赖
+type All[T any] map[string]T
 
+// Container 定义了一个容器, 用于获取对象
 type Container interface {
-	Exists(ctx context.Context, typ reflect.Type) bool
-	Must(ctx context.Context, typ reflect.Type) any
-	MustAll(ctx context.Context, typ reflect.Type) map[string]any
+	// Invoke 获取一个对象, 如果不存在, 则 panic
+	Invoke(ctx context.Context, typ reflect.Type) any
 }
 
-func Exists[T any](ctx context.Context) bool {
-	return ctx.Value(ContextKey).(Container).Exists(ctx, reflect.TypeOf(new(T)).Elem())
+// Invoke 获取一个对象, 如果不存在, 则 panic
+func Invoke[T any](ctx context.Context) T {
+	return ctx.Value(ContextKey).(Container).Invoke(ctx, reflect.TypeOf(new(T)).Elem()).(T)
 }
 
-func Must[T any](ctx context.Context) (t T) {
-	return ctx.Value(ContextKey).(Container).Must(ctx, reflect.TypeOf(new(T)).Elem()).(T)
-}
-
-func MustAll[T any](ctx context.Context) map[string]T {
-	v := ctx.Value(ContextKey).(Container).MustAll(ctx, reflect.TypeOf(new(T)).Elem())
-	ret := make(map[string]T, len(v))
-	for name := range v {
-		ret[name] = v[name].(T)
-	}
-	return ret
+// InvokeAll 获取所有的对象, 如果不存在, 则 panic
+func InvokeAll[T any](ctx context.Context) All[T] {
+	return ctx.Value(ContextKey).(Container).Invoke(ctx, reflect.TypeOf(new(All[T])).Elem()).(All[T])
 }

@@ -66,7 +66,7 @@ func provide(typ reflect.Type, flaggerBuilder any, buildFunc func(context.Contex
 	if group, ok := reg.constructors[typ]; ok {
 		if group.exists(provideOptions.name) {
 			if !provideOptions.override {
-				panic(fmt.Errorf("类型: %s, 名称: %s已存在", typ, provideOptions.name))
+				panic(fmt.Errorf("type: %s, Name: %s already exists", typ, provideOptions.name))
 			}
 		}
 	} else {
@@ -82,7 +82,7 @@ func provide(typ reflect.Type, flaggerBuilder any, buildFunc func(context.Contex
 		selections:        provideOptions.selections,
 	}
 	if err := reg.constructors[typ].add(provideOptions.name, c); err != nil {
-		panic(fmt.Errorf("类型: %s, 名称: %s添加失败: %s", typ, provideOptions.name, err))
+		panic(fmt.Errorf("type: %s, Name: %s add failed: %s", typ, provideOptions.name, err))
 	}
 }
 

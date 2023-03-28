@@ -50,7 +50,8 @@ type HttpServerRunOptions struct {
 }
 
 // NewHttpServer 初始化http服务, 并注册路由
-func NewHttpServer(opt *HttpServerRunOptions, repo UserRepo) (*HttpServer, error) {
+func NewHttpServer(opt *HttpServerRunOptions) (*HttpServer, error) {
+	repo, _ := NewUserRedisRepo(&UserRedisRepoOptions{})
 	mux := http.NewServeMux()
 	mux.HandleFunc("/email", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("id")
@@ -83,8 +84,8 @@ func (hs HttpServer) Run(ctx context.Context) error {
 
 func main() {
 	// 初始化容器
-	box.Provide[UserRepo](NewUserRedisRepo, box.WithFlagPrefix("repo-user-redis"))
-	box.Provide[*HttpServer](NewHttpServer, box.WithFlagPrefix("server-http"))
+	box.Provide[*HttpServer](NewHttpServer, box.WithFlags("server-http"))
+	box.Provide[UserRepo](NewUserRedisRepo)
 
 	// 信号处理
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)

@@ -113,7 +113,7 @@ type FlagBind func(fs *flag.FlagSet, value reflect.Value, name, def, usage strin
 
 func RegisterFlagBinder(typ reflect.Type, bind FlagBind) {
 	if _, ok := flagTypeBinds[typ]; ok {
-		panic(fmt.Errorf("flag type :%s 绑定器重复注册", typ))
+		panic(fmt.Errorf("flag type :%s has been bound", typ))
 	}
 	flagTypeBinds[typ] = bind
 }

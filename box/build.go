@@ -12,24 +12,11 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-type BBuilder[T any] interface {
-	Build(ctx context.Context) (T, error)
-}
-
-type bBuilderFunc[T any] struct {
-	BBuilder[T]
-}
-
-func (b *bBuilderFunc[T]) Build(ctx context.Context) (T, error) {
-	return b.BBuilder.Build(ctx)
-}
-
 type Builder[T any] interface {
 	Build(ctx context.Context) (T, error)
 }
 
 type buildOptions struct {
-	name string
 	init func(ctx context.Context) error
 }
 type BuildOption interface {
@@ -40,18 +27,12 @@ type buildOptionsFunc func(o *buildOptions)
 
 func (of buildOptionsFunc) apply(o *buildOptions) { of(o) }
 
-func Select(name string) BuildOption {
-	return buildOptionsFunc(func(o *buildOptions) {
-		o.name = name
-	})
-}
-
 type multiInit []func(context.Context) error
 
 func (m multiInit) init(ctx context.Context) error {
 	for i := range m {
 		if err := m[i](ctx); err != nil {
-			return fmt.Errorf("运行(%T)返回错误: %w", m[i], err)
+			return fmt.Errorf("execution of (%T) returned error: %w", m[i], err)
 		}
 	}
 	return nil
@@ -79,14 +60,14 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 
 	if err := godotenv.Load(); err != nil {
 		if !os.IsNotExist(err) {
-			slog.Warn("godotenv.Load失败", "err", err)
+			slog.Warn("godotenv.Load failed", "err", err)
 		}
 	}
-	nfs.FlagSet().StringVar(&configFile, "config", configFile, "配置文件地址")
-	printConfig := nfs.FlagSet().Bool("print-config", false, "打印配置信息")
+	nfs.FlagSet().StringVar(&configFile, "config", configFile, "configuration file path")
+	printConfig := nfs.FlagSet().Bool("print-config", false, "print configuration information")
 	nfs.BindEnvAndFlags(envPrefix, flag.CommandLine)
 	if err := configLoadFunc(configFile, flag.CommandLine); err != nil {
-		slog.Warn("配置文件加载错误", "error", err.Error())
+		slog.Warn("local configuration file not found", "error", err.Error())
 	}
 	if *printConfig {
 		err := EncodeFlags(os.Stdout)
@@ -97,9 +78,6 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 		os.Exit(0)
 	}
 
-	if opt.name != "" {
-		reg = defaultRegistrar.Named(opt.name)
-	}
 	if opt.init != nil {
 		Provide[*initializer[T]](&initializer[T]{
 			beforeFunc: opt.init,
@@ -116,15 +94,10 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 	return di.Build[T](ctx)
 }
 
-func Must[T any](ctx context.Context) T {
-	return object.Must[T](ctx)
+func Invoke[T any](ctx context.Context) T {
+	return object.Invoke[T](ctx)
 }
 
-func MustAll[T any](ctx context.Context) map[string]T {
-	return object.MustAll[T](ctx)
-}
-
-// Exists 判断类型T是否已经在容器内提供了
-func Exists[T any](ctx context.Context) bool {
-	return object.Exists[T](ctx)
+func InvokeAll[T any](ctx context.Context) map[string]T {
+	return object.InvokeAll[T](ctx)
 }

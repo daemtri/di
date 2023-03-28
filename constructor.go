@@ -6,11 +6,6 @@ import (
 	"sync"
 )
 
-type Selection struct {
-	typ  reflect.Type
-	name string
-}
-
 type constructor struct {
 	builder  any
 	instance any

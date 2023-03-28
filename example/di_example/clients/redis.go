@@ -1,6 +1,11 @@
 package clients
 
-import "context"
+import (
+	"context"
+	"fmt"
+
+	"github.com/daemtri/di/object"
+)
 
 type RedisOptions struct {
 	Addr string `flag:"addr" default:"127.0.0.1" usage:"redis server address"`
@@ -8,7 +13,10 @@ type RedisOptions struct {
 }
 
 func (ro *RedisOptions) Build(ctx context.Context) (*RedisClient, error) {
+	fmt.Println("build redis client", ro.Addr, ro.Port)
 	// 这里可以用redis驱动的client
+	m := object.Invoke[*MysqlClient](ctx)
+	fmt.Println("mysql client", m)
 	return &RedisClient{client: nil}, nil
 }
 

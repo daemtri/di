@@ -5,17 +5,22 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
+	"strings"
 )
+
+func isFlag(fieldTyp reflect.StructField) bool {
+	_, ok := fieldTyp.Tag.Lookup("flag")
+	return ok
+}
 
 func parseFlagTag(tag reflect.StructTag) (name, def, usage string) {
 	return tag.Get("flag"), tag.Get("default"), tag.Get("usage")
 }
 
-func isNested(fieldTyp reflect.StructField) bool {
-	if _, ok := fieldTyp.Tag.Lookup("flag"); !ok {
-		return false
+func isNestedFlagStruct(typ reflect.Type) bool {
+	if typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
 	}
-	typ := fieldTyp.Type
 	if typ.Kind() != reflect.Struct {
 		return false
 	}
@@ -69,31 +74,37 @@ func parseNested(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflect.Value) {
 	fieldNum := fType.NumField()
 	for i := 0; i < fieldNum; i++ {
-		if !fType.Field(i).IsExported() {
+		if !fType.Field(i).IsExported() || !isFlag(fType.Field(i)) {
 			continue
 		}
 		name, def, usage := parseFlagTag(fType.Field(i).Tag)
 
-		if isNested(fType.Field(i)) {
-			npfx := pfx.concat(name, usage)
-			if fType.Field(i).Type.Kind() == reflect.Interface {
-				if !fValue.Field(i).IsNil() {
-					parseNested(fs, npfx, fValue.Field(i).Elem().Type(), fValue.Field(i).Elem())
-				}
-			} else {
-				parseNested(fs, npfx, fType.Field(i).Type, fValue.Field(i))
+		// 当前字段是一个flag，类型是一个Interface,并且这个Interface不是nil
+		// 解析这个field的value的类型，如果是一个struct，那么继续解析
+		if fType.Field(i).Type.Kind() == reflect.Interface {
+			if fValue.Field(i).IsNil() {
+				continue
 			}
+			fieldType := fValue.Field(i).Elem().Type()
+			if !isNestedFlagStruct(fieldType) {
+				continue
+			}
+			parseNested(fs, pfx.concat(name, usage), fieldType, fValue.Field(i).Elem())
+			continue
+		} else if isNestedFlagStruct(fType.Field(i).Type) {
+			parseNested(fs, pfx.concat(name, usage), fType.Field(i).Type, fValue.Field(i))
 			continue
 		}
 
 		if name == "" {
-			continue
+			// 如果没有指定flag的名称,则使用字段名
+			name = strings.ToLower(fType.Field(i).Name)
 		}
 		tags := pfx.concat(name, usage)
 		name, usage = tags.name, tags.usage
 
 		if fType.Field(i).Type.Kind() == reflect.Pointer {
-			panic(fmt.Errorf("flag参数不支持指针类型,name=%s", name))
+			panic(fmt.Errorf("flag parameter does not support pointer type,name=%s", name))
 		}
 
 		// 检查是否实现了
@@ -105,7 +116,7 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 			if vv, ok := v.(flag.Value); ok {
 				if vv.String() == "" {
 					if err := vv.Set(def); err != nil {
-						panic(fmt.Errorf("设置%s默认值失败: %w", name, err))
+						panic(fmt.Errorf("failed to set default value for %s: %w", name, err))
 					}
 				}
 				fs.Var(vv, name, usage)
@@ -113,11 +124,11 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 				if defValue, ok := v.(encoding.TextMarshaler); ok {
 					current, err := defValue.MarshalText()
 					if err != nil {
-						panic(fmt.Errorf("获取参数当前值失败: typ=%s,name=%s,err=%s", fValue.Field(i).Type(), name, err))
+						panic(fmt.Errorf("failed to get current value of parameter: typ=%s,name=%s,err=%s", fValue.Field(i).Type(), name, err))
 					}
 					if len(current) == 0 && def != "" {
 						if err := vv.UnmarshalText([]byte(def)); err != nil {
-							panic(fmt.Errorf("解析参数默认值错误: typ=%s,name=%s,err=%s", fValue.Field(i).Type(), name, err))
+							panic(fmt.Errorf("parse default value error: typ=%s,name=%s,err=%s", fValue.Field(i).Type(), name, err))
 						}
 					}
 					textVar(fs, vv, name, defValue, usage)
@@ -131,7 +142,7 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 			// 检查是否已经注册了reflect.kind类别处理器
 			fn, ok = flagKindBinds[fType.Field(i).Type.Kind()]
 			if !ok {
-				panic(fmt.Errorf("%s包含暂不支持的参数类型: %s", fType, fType.Field(i).Type))
+				panic(fmt.Errorf("%s contains parameter type not supported: %s", fType, fType.Field(i).Type))
 			}
 		}
 		if err := fn(fs, fValue.Field(i), name, def, usage); err != nil {
@@ -141,22 +152,22 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 }
 
 type structFlagger struct {
-	builder any
+	options any
 
 	typ reflect.Type
 	val reflect.Value
 }
 
-func newStructFlagger(builder any) *structFlagger {
+func newStructFlagger(options any) *structFlagger {
 	return &structFlagger{
-		builder: builder,
-		typ:     reflect.TypeOf(builder),
-		val:     reflect.ValueOf(builder),
+		options: options,
+		typ:     reflect.TypeOf(options),
+		val:     reflect.ValueOf(options),
 	}
 }
 
 func (sf *structFlagger) AddFlags(fs *flag.FlagSet) {
-	if add, ok := sf.builder.(interface{ AddFlags(fs *flag.FlagSet) }); ok {
+	if add, ok := sf.options.(interface{ AddFlags(fs *flag.FlagSet) }); ok {
 		add.AddFlags(fs)
 		return
 	}
@@ -176,12 +187,11 @@ func (sf *structFlagger) AddFlags(fs *flag.FlagSet) {
 		fValue = sf.val
 		fType = sf.typ
 	}
-
 	parseStruct(fs, prefix{}, fType, fValue)
 }
 
 func (sf *structFlagger) ValidateFlags() error {
-	if optImpl, ok := sf.builder.(interface{ ValidateFlags() error }); ok {
+	if optImpl, ok := sf.options.(interface{ ValidateFlags() error }); ok {
 		return optImpl.ValidateFlags()
 	}
 

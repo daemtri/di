@@ -10,7 +10,7 @@ import (
 )
 
 //go:linkname diProvide github.com/daemtri/di.provide
-func diProvide(reg di.Registry, typ reflect.Type, flaggerBuilder any, buildFunc func(context.Context) (any, error)) di.Constructor
+func diProvide(reg di.Registry, typ reflect.Type, flaggerBuilder any, buildFunc func(context.Context) (any, error))
 
 type ProviderSet struct {
 	sets []*injectBuilder

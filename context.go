@@ -4,22 +4,16 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-)
 
-type contextKey struct {
-	name string
-}
-
-var (
-	ctxKey = &contextKey{name: "di"}
+	"github.com/daemtri/di/object"
 )
 
 func withContext(ctx context.Context, c Context) context.Context {
-	return context.WithValue(ctx, ctxKey, c)
+	return context.WithValue(ctx, object.ContextKey, c)
 }
 
 func getContext(ctx context.Context) Context {
-	return ctx.Value(ctxKey).(Context)
+	return ctx.Value(object.ContextKey).(Context)
 }
 
 // requirer 定义了一个依赖
@@ -90,22 +84,23 @@ func (rc *requirerContext) isDiscard() bool {
 	return rc.discard
 }
 
-func (rc *requirerContext) Exists(ctx context.Context, typ reflect.Type) bool {
-	return rc.container().exists(ctx, typ)
-}
-
-func (rc *requirerContext) MustAll(ctx context.Context, typ reflect.Type) map[string]any {
-	return rc.container().mustAll(ctx, typ)
-}
-
-func (rc *requirerContext) Must(ctx context.Context, p reflect.Type) any {
-	return rc.container().must(ctx, p)
+func (rc *requirerContext) Invoke(ctx context.Context, typ reflect.Type) any {
+	if typ.Kind() == reflect.Map {
+		elemTyp := typ.Elem()
+		allValues := rc.container().mustAll(ctx, elemTyp)
+		all := reflect.MakeMap(typ)
+		for name := range allValues {
+			all.SetMapIndex(reflect.ValueOf(name), reflect.ValueOf(allValues[name]))
+		}
+		return all.Interface()
+	}
+	return rc.container().must(ctx, typ)
 }
 
 // checkContext 判断一个构建类型是否已存在
 func checkContext(ctx Context) error {
 	if contextIsConflict(ctx) {
-		return fmt.Errorf("依赖冲突: %s", ctx.Path())
+		return fmt.Errorf("dependency conflicts: %s", ctx.Path())
 	}
 	return nil
 }

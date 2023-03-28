@@ -3,6 +3,7 @@ module github.com/daemtri/di
 go 1.20
 
 require (
+	github.com/davecgh/go-spew v1.1.1
 	github.com/go-playground/validator/v10 v10.12.0
 	github.com/joho/godotenv v1.5.1
 	github.com/tidwall/gjson v1.14.4

@@ -14,7 +14,7 @@ func newOptions() *options {
 	}
 }
 
-type Options interface {
+type Option interface {
 	apply(o *options)
 }
 
@@ -22,26 +22,26 @@ type optionsFunc func(o *options)
 
 func (of optionsFunc) apply(o *options) { of(o) }
 
-func WithName(name string) Options {
+func WithName(name string) Option {
 	return optionsFunc(func(o *options) {
 		o.opts = append(o.opts, di.WithName(name))
 	})
 }
 
-func WithFlagPrefix(prefix string) Options {
+func WithFlags(prefix string) Option {
 	return optionsFunc(func(o *options) {
 		o.opts = append(o.opts, di.WithFlagset(nfs.FlagSet(prefix)))
 	})
 }
 
 // WithSelect 仅供在ProvideInject时使用，可以指定注入某个类型的名字
-func WithSelect[T any](name string) Options {
+func WithSelect[T any](name string) Option {
 	return optionsFunc(func(o *options) {
 		o.opts = append(o.opts, di.WithSelect[T](name))
 	})
 }
 
-func WithOverride() Options {
+func WithOverride() Option {
 	return optionsFunc(func(o *options) {
 		o.opts = append(o.opts, di.WithOverride())
 	})
