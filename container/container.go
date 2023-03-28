@@ -9,7 +9,9 @@ var (
 	ContextKey = &struct{ name string }{name: "di.container.ContextKey"}
 )
 
-// Set This container is used to get objects
+// Set is used to return a set of instances for a particular type.
+// This is used to inform the Container that it should return a set of instances
+// (as opposed to a single instance) for the specified type.
 // usage: Invoke[Set[MyInterface]](ctx)
 // Note that this feature depends on the container implementation.
 // If the container allows to register multiple objects of the same type,
