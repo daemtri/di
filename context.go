@@ -93,6 +93,14 @@ func (rc *requirerContext) Invoke(ctx context.Context, typ reflect.Type) any {
 			all.SetMapIndex(reflect.ValueOf(name), reflect.ValueOf(allValues[name]))
 		}
 		return all.Interface()
+	} else if typ.Kind() == reflect.Slice {
+		elemTyp := typ.Elem()
+		allValues := rc.container().mustAll(ctx, elemTyp)
+		all := reflect.MakeSlice(typ, 0, len(allValues))
+		for _, value := range allValues {
+			all = reflect.Append(all, reflect.ValueOf(value))
+		}
+		return all.Interface()
 	}
 	return rc.container().must(ctx, typ)
 }

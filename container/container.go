@@ -9,9 +9,12 @@ var (
 	ContextKey = &struct{ name string }{name: "di.container.ContextKey"}
 )
 
-// All This container is used to get objects
-// usage: Invoke[All[MyInterface]](ctx)
-type All[T any] map[string]T
+// Set This container is used to get objects
+// usage: Invoke[Set[MyInterface]](ctx)
+// Note that this feature depends on the container implementation.
+// If the container allows to register multiple objects of the same type,
+// then Invoke[Set[MyInterface]](ctx) will return all objects of the same type.
+type Set[T any] []T
 
 // Interface Container interface
 type Interface interface {
