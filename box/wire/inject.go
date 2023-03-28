@@ -5,9 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
+
+	"github.com/daemtri/di/object"
 )
 
 var (
+	errType    = reflect.TypeOf(func() error { return nil }).Out(0)
 	stdCtxType = reflect.TypeOf(func(context.Context) {}).In(0)
 	flagAdder  = reflect.TypeOf(func(interface{ AddFlags(fs *flag.FlagSet) }) {}).In(0)
 )
@@ -44,22 +47,23 @@ func isFlagSetProvider(v reflect.Type) bool {
 	return false
 }
 
-func Inject(fn any) *injectBuilder {
+func newAnyFunctionBuilder(fn any) *anyFunctionBuilder {
 	fnType := reflect.TypeOf(fn)
-
 	// 判断fn合法性
 	if fnType.Kind() != reflect.Func {
-		panic("ProvideInject只支持函数类型")
+		panic("ProvideInject only supports function types")
 	}
-	if fnType.NumOut() < 1 {
-		panic("ProvideInject 函数必须返回1个参数")
+	if fnType.NumOut() != 1 {
+		panic("provideInject must return one parameters: T")
 	}
-	pTyp := fnType.Out(0)
-
-	ib := &injectBuilder{
-		pType:   pTyp,
-		fnType:  fnType,
-		fnValue: reflect.ValueOf(fn),
+	targetType := fnType.Out(0)
+	if fnType.Out(1) != errType {
+		panic(fmt.Errorf("the second return value of the ProvideInject function must be %s", errType))
+	}
+	ib := &anyFunctionBuilder{
+		targetType: targetType,
+		fnType:     fnType,
+		fnValue:    reflect.ValueOf(fn),
 	}
 
 	// 查找flagSetProvider
@@ -77,43 +81,39 @@ func Inject(fn any) *injectBuilder {
 			break
 		}
 	}
+
 	return ib
 }
 
-type injectBuilder struct {
+type anyFunctionBuilder struct {
 	Option any `flag:""`
 
-	pType       reflect.Type
+	targetType  reflect.Type
 	optionIndex int
 	fnValue     reflect.Value
 	fnType      reflect.Type
 }
 
-type reflectBuilder interface {
-	Exists(p reflect.Type) bool
-	Must(p reflect.Type) any
-}
-
-func (ib *injectBuilder) Build(ctx context.Context) (any, error) {
+func (b *anyFunctionBuilder) Build(ctx context.Context) (any, error) {
 	defer func() {
 		if e := recover(); e != nil {
-			panic(fmt.Errorf("build(%s): %s", ib.pType, e))
+			panic(fmt.Errorf("build(%s): %s", b.targetType, e))
 		}
 	}()
-	inValues := make([]reflect.Value, 0, ib.fnType.NumIn())
-	for i := 0; i < ib.fnType.NumIn(); i++ {
-		if i == ib.optionIndex && ib.Option != nil {
-			inValues = append(inValues, reflect.ValueOf(ib.Option))
+	inValues := make([]reflect.Value, 0, b.fnType.NumIn())
+	for i := 0; i < b.fnType.NumIn(); i++ {
+		if i == b.optionIndex && b.Option != nil {
+			inValues = append(inValues, reflect.ValueOf(b.Option))
 			continue
 		}
-		if ib.fnType.In(i) == stdCtxType {
+		if b.fnType.In(i) == stdCtxType {
 			inValues = append(inValues, reflect.ValueOf(ctx))
 			continue
 		}
-		v := ctx.(reflectBuilder).Must(ib.fnType.In(i))
+		v := ctx.Value(object.ContextKey).(object.Container).Invoke(ctx, b.fnType.In(i))
 		inValues = append(inValues, reflect.ValueOf(v))
 	}
 
-	ret := ib.fnValue.Call(inValues)
+	ret := b.fnValue.Call(inValues)
 	return ret[0].Interface(), nil
 }

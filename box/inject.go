@@ -8,7 +8,6 @@ import (
 
 	"github.com/daemtri/di"
 	"github.com/daemtri/di/object"
-	"github.com/davecgh/go-spew/spew"
 )
 
 var (
@@ -120,7 +119,6 @@ type injectBuilder[T any] struct {
 }
 
 func (ib *injectBuilder[T]) Build(ctx context.Context) (T, error) {
-	spew.Dump(ib.Option)
 	defer func() {
 		if e := recover(); e != nil {
 			t := reflectType[T]()
