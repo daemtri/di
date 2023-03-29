@@ -26,6 +26,7 @@ type Interface interface {
 }
 
 // Invoke Get a value from the map for a key, or panic if none exists.
+// if need all type of T, please use Invoke[Set[T]](ctx)
 func Invoke[T any](ctx context.Context) T {
 	return ctx.Value(ContextKey).(Interface).Invoke(ctx, reflect.TypeOf(new(T)).Elem()).(T)
 }
