@@ -79,8 +79,8 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 		}
 		name, def, usage := parseFlagTag(fType.Field(i).Tag)
 
-		// 当前字段是一个flag，类型是一个Interface,并且这个Interface不是nil
-		// 解析这个field的value的类型，如果是一个struct，那么继续解析
+		// The field is a flag, the type is an interface, and the interface is not nil.
+		// Parse the value type of this field, if it is a struct, continue parsing.
 		if fType.Field(i).Type.Kind() == reflect.Interface {
 			if fValue.Field(i).IsNil() {
 				continue
@@ -97,7 +97,7 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 		}
 
 		if name == "" {
-			// 如果没有指定flag的名称,则使用字段名
+			// If no name is specified for the flag, use the field name.
 			name = strings.ToLower(fType.Field(i).Name)
 		}
 		tags := pfx.concat(name, usage)
@@ -107,10 +107,10 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 			panic(fmt.Errorf("flag parameter does not support pointer type,name=%s", name))
 		}
 
-		// 检查是否实现了
-		// 		flag.Value接口
-		//		encoding.Text{Marshaler,Unmarshaler}接口
-		// 注: net.IP, time.Time均实现了该接口
+		// Check that the value implements
+		//		flag.Value
+		//		encoding.Text{Marshaler,Unmarshaler}
+		// Note: net.IP and time.Time implement both interfaces.
 		if fValue.Field(i).CanAddr() {
 			v := fValue.Field(i).Addr().Interface()
 			if vv, ok := v.(flag.Value); ok {
@@ -136,10 +136,10 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 				}
 			}
 		}
-		// 检查是否已经注册了reflect.Type类型处理器
+		// check if we already have a handler for this reflect.Type
 		fn, ok := flagTypeBinds[fType.Field(i).Type]
 		if !ok {
-			// 检查是否已经注册了reflect.kind类别处理器
+			// Check if we have a registered reflect.Kind handler
 			fn, ok = flagKindBinds[fType.Field(i).Type.Kind()]
 			if !ok {
 				panic(fmt.Errorf("%s contains parameter type not supported: %s", fType, fType.Field(i).Type))

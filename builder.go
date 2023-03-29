@@ -4,12 +4,12 @@ import (
 	"context"
 )
 
-// Builder 定义了对象构建器
+// Builder defines the object builder
 type Builder[T any] interface {
 	Build(ctx context.Context) (T, error)
 }
 
-// Build 构建一个指定对象, build不能构建命名对象
+// Build builds a specified object. Build cannot build a named object.
 func Build[T any](ctx context.Context) (T, error) {
 	if err := reg.ValidateFlags(); err != nil {
 		return emptyValue[T](), err

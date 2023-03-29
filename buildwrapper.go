@@ -3,7 +3,9 @@ package di
 import "context"
 
 type BuildFunc[T any] struct {
-	// 函数定义在结构体内部，强制不能自动推导Provide时的类型信息，以便能够查阅注册内容
+	// Functions are defined in the structure,
+	// forced to not automatically infer the type information provided at registration,
+	// so that you can view the registration contents
 	fn func(context.Context) (T, error)
 }
 

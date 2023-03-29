@@ -20,7 +20,7 @@ func (c *constructorGroup) add(name string, cst *constructor) error {
 		c.groups = make(map[string]*constructor)
 	}
 	if _, ok := c.groups[name]; ok {
-		return fmt.Errorf("名称为%s的构建器已存在", name)
+		return fmt.Errorf("builder %s already exists", name)
 	}
 	c.groups[name] = cst
 	return nil
@@ -28,11 +28,11 @@ func (c *constructorGroup) add(name string, cst *constructor) error {
 
 func (c *constructorGroup) get(name string) (*constructor, error) {
 	if c.groups == nil {
-		return nil, fmt.Errorf("名称为%s的构建器不存在", name)
+		return nil, fmt.Errorf("builder with name %s does not exist", name)
 	}
 	rtn, ok := c.groups[name]
 	if !ok {
-		return nil, fmt.Errorf("名称为%s的构建器不存在", name)
+		return nil, fmt.Errorf("builder %s does not exist", name)
 	}
 	return rtn, nil
 }
@@ -64,7 +64,7 @@ type container struct {
 	constructors map[reflect.Type]*constructorGroup
 }
 
-// ValidateFlags 验证参数
+// ValidateFlags validates the given flags.
 func (c *container) ValidateFlags() error {
 	var err error
 	for i := range c.constructors {
@@ -84,15 +84,15 @@ func (c *container) ValidateFlags() error {
 func (c *container) build(ctx context.Context, typ reflect.Type, name string) (any, error) {
 	localCtx := getContext(ctx)
 	if localCtx.isDiscard() {
-		return nil, fmt.Errorf("无法在构造函数外构建 %s, Context已失效", typ)
+		return nil, fmt.Errorf("cannot build %s outside of constructor, Context is invalid", typ)
 	}
 	s, ok := c.constructors[typ]
 	if !ok {
-		return nil, fmt.Errorf("类型%s(name=%s)不存在", reflectTypeString(typ), name)
+		return nil, fmt.Errorf("the type %s (name=[%s]) does not exist在", reflectTypeString(typ), name)
 	}
 	cst, err := s.get(name)
 	if err != nil {
-		return nil, fmt.Errorf("类型%s(name=%s)不存在: %w", reflectTypeString(typ), name, err)
+		return nil, fmt.Errorf("type %s (name=[%s]) does not exist: %w", reflectTypeString(typ), name, err)
 	}
 	newLocalCtx := withRequirer(localCtx, &requirer{
 		typ:         typ,
@@ -108,7 +108,7 @@ func (c *container) build(ctx context.Context, typ reflect.Type, name string) (a
 	}
 	rtn, err := cst.build(withContext(ctx, newLocalCtx))
 	if err != nil {
-		return nil, fmt.Errorf("Build type %s error: %w", typ, err)
+		return nil, fmt.Errorf("build type %s error: %w", typ, err)
 	}
 	return rtn, nil
 }

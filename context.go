@@ -16,7 +16,7 @@ func getContext(ctx context.Context) Context {
 	return ctx.Value(dicontainer.ContextKey).(Context)
 }
 
-// requirer 定义了一个依赖
+// requirer is defined as a dependency
 type requirer struct {
 	typ         reflect.Type
 	name        string
@@ -24,7 +24,7 @@ type requirer struct {
 	parent      *requirer
 }
 
-// Context 定义了构建上下文, 用于构建对象, 以及获取依赖, 以及获取上下文
+// Context defines the context for building objects, as well as getting dependencies and getting the context itself.
 type Context interface {
 	Path() string
 
@@ -33,7 +33,7 @@ type Context interface {
 	isDiscard() bool
 }
 
-// baseContext 定义了基础上下文
+// baseContext defines the basic context
 type baseContext struct {
 	c *container
 }
@@ -105,7 +105,7 @@ func (rc *requirerContext) Invoke(ctx context.Context, typ reflect.Type) any {
 	return rc.container().must(ctx, typ)
 }
 
-// checkContext 判断一个构建类型是否已存在
+// checkContext checks if a build type already exists.
 func checkContext(ctx Context) error {
 	if contextIsConflict(ctx) {
 		return fmt.Errorf("dependency conflicts: %s", ctx.Path())
