@@ -31,10 +31,32 @@ func Invoke[T any](ctx context.Context) T {
 }
 
 // Simple A simple container for mocking testing scenes.
+// Simple implements the Container interface, but not implement the Set[T] feature.
+// if need Invoke[Set[T]](ctx), please Put Set[T] into Simple.
 type Simple map[reflect.Type]any
 
-// Put add an object
+// SimpleContext create a context with a simple container
+// objects can be any type, but must be unique.
+// and the type of objects will be used as the key of the container.
+// usage:
+// ctx := SimpleContext(context.Background(), &MyService{})
+//
+//	ctx := SimpleContext(context.Background(), &MyService{}, &MyOtherService{})
+//
+// ctx := SimpleContext(context.Background(), &MyService{}, &MyOtherService{}, Set[MyInterface]{&MyService{}, &MyOtherService{}})
+func SimpleContext(ctx context.Context, objects ...any) context.Context {
+	s := make(Simple)
+	for i := range objects {
+		s.Put(objects[i])
+	}
+	return context.WithValue(ctx, ContextKey, s)
+}
+
+// Put an object into the container, the type of the object will be used as the key.
 func (s Simple) Put(obj any) {
+	if s == nil {
+		s = make(Simple)
+	}
 	s[reflect.TypeOf(obj)] = obj
 }
 
