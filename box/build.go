@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/daemtri/di"
+	"github.com/daemtri/di/box/flagx"
 	"github.com/daemtri/di/container"
 	"github.com/joho/godotenv"
 	"golang.org/x/exp/slog"
@@ -65,10 +66,13 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 	}
 	nfs.FlagSet().StringVar(&configFile, "config", configFile, "configuration file path")
 	printConfig := nfs.FlagSet().Bool("print-config", false, "print configuration information")
-	nfs.BindEnvAndFlags(envPrefix, flag.CommandLine)
-	if err := configLoadFunc(configFile, flag.CommandLine); err != nil {
+	nfs.BindFlagSet(flag.CommandLine, envPrefix)
+	if items, err := configLoadFunc(configFile); err != nil {
 		slog.Warn("local configuration file not found", "error", err.Error())
+	} else if err := SetConfig(items, flagx.SourceFile); err != nil {
+		slog.Warn("set local configuration failed", "error", err.Error())
 	}
+
 	if *printConfig {
 		err := EncodeFlags(os.Stdout)
 		if err != nil {
