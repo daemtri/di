@@ -75,6 +75,9 @@ func WithImplement[I any, T any]() Option {
 		if !tType.Implements(iType) {
 			panic(fmt.Errorf("type: %s does not implement interface: %s", tType, iType))
 		}
+		if _, ok := opts.implements[iType]; ok {
+			panic(fmt.Errorf("interface: %s already has implementation: %s", iType, opts.implements[iType]))
+		}
 		opts.implements[iType] = tType
 	})
 }
@@ -100,6 +103,7 @@ func provide(typ reflect.Type, flaggerBuilder any, buildFunc func(context.Contex
 		validateFlagsFunc: sf.ValidateFlags,
 		buildFunc:         buildFunc,
 		selections:        provideOptions.selections,
+		implements:        provideOptions.implements,
 	}
 	if err := reg.constructors[typ].add(provideOptions.name, c); err != nil {
 		panic(fmt.Errorf("type: %s, Name: %s add failed: %s", typ, provideOptions.name, err))

@@ -123,6 +123,12 @@ func (c *container) exists(ctx context.Context, p reflect.Type) bool {
 }
 
 func (c *container) mustAll(ctx context.Context, p reflect.Type) map[string]any {
+	if p.Kind() == reflect.Interface {
+		iType := getImplementFromContext(ctx, p)
+		if iType != nil {
+			p = iType
+		}
+	}
 	localCtx := getContext(ctx)
 	cst, ok := c.constructors[p]
 	if !ok {
@@ -141,6 +147,12 @@ func (c *container) mustAll(ctx context.Context, p reflect.Type) map[string]any 
 }
 
 func (c *container) must(ctx context.Context, p reflect.Type) any {
+	if p.Kind() == reflect.Interface {
+		iType := getImplementFromContext(ctx, p)
+		if iType != nil {
+			p = iType
+		}
+	}
 	v, err := c.build(ctx, p, getTypeNameFromContext(ctx, p))
 	if err != nil {
 		panic(fmt.Errorf("must build failed: %s", err))

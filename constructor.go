@@ -14,6 +14,7 @@ type constructor struct {
 	buildFunc         func(ctx context.Context) (any, error)
 
 	selections map[reflect.Type]string
+	implements map[reflect.Type]reflect.Type
 
 	mux sync.RWMutex
 }

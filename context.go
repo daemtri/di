@@ -135,3 +135,11 @@ func getTypeNameFromContext(ctx context.Context, typ reflect.Type) string {
 	}
 	return secs[typ]
 }
+
+func getImplementFromContext(ctx context.Context, typ reflect.Type) reflect.Type {
+	imps := getContext(ctx).requirer().constructor.implements
+	if imps == nil {
+		return nil
+	}
+	return imps[typ]
+}
