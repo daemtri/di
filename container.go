@@ -129,14 +129,13 @@ func (c *container) mustAll(ctx context.Context, p reflect.Type) map[string]any 
 			p = iType
 		}
 	}
-	localCtx := getContext(ctx)
 	cst, ok := c.constructors[p]
 	if !ok {
 		panic(fmt.Errorf("the type %s does not exist", reflectTypeString(p)))
 	}
 	vv := make(map[string]any, len(cst.groups))
 	for name := range cst.groups {
-		v, err := c.build(ctx, p, localCtx.requirer().constructor.selections[p])
+		v, err := c.build(ctx, p, name)
 		if err != nil {
 			panic(fmt.Errorf("must build failed: %s", err))
 		}
