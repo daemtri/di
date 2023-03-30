@@ -118,6 +118,8 @@ func provide(typ reflect.Type, flaggerBuilder any, buildFunc func(context.Contex
 	}
 }
 
+// Provide is used to provide a type T to the container.
+// The provided type T must be a struct or a pointer to a struct, or a interface
 func Provide[T any](b Builder[T], opts ...Option) {
 	provide(reflectType[T](), b, func(ctx context.Context) (any, error) {
 		return b.Build(ctx)
