@@ -44,6 +44,8 @@ type NamedFlagSets struct {
 	keySource map[string]Source
 
 	fs *flag.FlagSet
+
+	validateTags map[string]string
 }
 
 // FlagSet 返回一个以name为名称的flagSet
@@ -96,17 +98,21 @@ func (nfs *NamedFlagSets) BindFlagSet(fs *flag.FlagSet, envPrefix string) {
 	nfs.fs = fs
 
 	envFlags := make([]envFlag, 0, fs.NFlag())
-	nfs.VisitAll(func(p string, f *flag.Flag) {
+	nfs.VisitAll(func(prefix string, f *flag.Flag) {
 		name := f.Name
-		if p != "" {
-			name = p + "-" + f.Name
+		if prefix != "" {
+			name = prefix + "-" + f.Name
 		}
 		key := envKey(envPrefix, name)
 		envFlags = append(envFlags, envFlag{
 			envKey:  key,
 			flagKey: name,
 		})
-		fs.Var(f.Value, name, fmt.Sprintf("%s (env %s)", f.Usage, key))
+		if validate, ok := nfs.validateTags[name]; ok {
+			fs.Var(f.Value, name, fmt.Sprintf("%s [%s] (env %s)", f.Usage, validate, key))
+		} else {
+			fs.Var(f.Value, name, fmt.Sprintf("%s (env %s)", f.Usage, key))
+		}
 		fs.Lookup(name).DefValue = f.DefValue
 	})
 	// parse flags from os.Args
@@ -143,4 +149,13 @@ func (nfs *NamedFlagSets) Set(key string, value string, source Source) error {
 	}
 	nfs.keySource[key] = source
 	return nil
+}
+
+func (nfs *NamedFlagSets) SetValidateTags(tags map[string]string) {
+	if nfs.validateTags == nil {
+		nfs.validateTags = make(map[string]string, len(tags))
+	}
+	for name := range tags {
+		nfs.validateTags[name] = tags[name]
+	}
 }

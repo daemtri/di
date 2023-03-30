@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
-	"strings"
 )
 
 func isFlag(fieldTyp reflect.StructField) bool {
@@ -13,8 +12,8 @@ func isFlag(fieldTyp reflect.StructField) bool {
 	return ok
 }
 
-func parseFlagTag(tag reflect.StructTag) (name, def, usage string) {
-	return tag.Get("flag"), tag.Get("default"), tag.Get("usage")
+func parseFlagTag(field reflect.StructField) (name, def, usage string) {
+	return field.Tag.Get("flag"), field.Tag.Get("default"), field.Tag.Get("usage")
 }
 
 func isNestedFlagStruct(typ reflect.Type) bool {
@@ -77,7 +76,7 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 		if !fType.Field(i).IsExported() || !isFlag(fType.Field(i)) {
 			continue
 		}
-		name, def, usage := parseFlagTag(fType.Field(i).Tag)
+		name, defaultValue, usage := parseFlagTag(fType.Field(i))
 
 		// The field is a flag, the type is an interface, and the interface is not nil.
 		// Parse the value type of this field, if it is a struct, continue parsing.
@@ -96,15 +95,13 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 			continue
 		}
 
+		// the field name is empty string, and the field is not a nested flag, skip it.
 		if name == "" {
-			// If no name is specified for the flag, use the field name.
-			name = strings.ToLower(fType.Field(i).Name)
+			continue
 		}
-		tags := pfx.concat(name, usage)
-		name, usage = tags.name, tags.usage
-
+		full := pfx.concat(name, usage)
 		if fType.Field(i).Type.Kind() == reflect.Pointer {
-			panic(fmt.Errorf("flag parameter does not support pointer type,name=%s", name))
+			panic(fmt.Errorf("flag parameter does not support pointer type,name=%s", full.name))
 		}
 
 		// Check that the value implements
@@ -115,23 +112,23 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 			v := fValue.Field(i).Addr().Interface()
 			if vv, ok := v.(flag.Value); ok {
 				if vv.String() == "" {
-					if err := vv.Set(def); err != nil {
-						panic(fmt.Errorf("failed to set default value for %s: %w", name, err))
+					if err := vv.Set(defaultValue); err != nil {
+						panic(fmt.Errorf("failed to set default value for %s: %w", full.name, err))
 					}
 				}
-				fs.Var(vv, name, usage)
+				fs.Var(vv, full.name, full.usage)
 			} else if vv, ok := v.(encoding.TextUnmarshaler); ok {
 				if defValue, ok := v.(encoding.TextMarshaler); ok {
 					current, err := defValue.MarshalText()
 					if err != nil {
-						panic(fmt.Errorf("failed to get current value of parameter: typ=%s,name=%s,err=%s", fValue.Field(i).Type(), name, err))
+						panic(fmt.Errorf("failed to get current value of parameter: typ=%s,name=%s,err=%s", fValue.Field(i).Type(), full.name, err))
 					}
-					if len(current) == 0 && def != "" {
-						if err := vv.UnmarshalText([]byte(def)); err != nil {
-							panic(fmt.Errorf("parse default value error: typ=%s,name=%s,err=%s", fValue.Field(i).Type(), name, err))
+					if len(current) == 0 && defaultValue != "" {
+						if err := vv.UnmarshalText([]byte(defaultValue)); err != nil {
+							panic(fmt.Errorf("parse default value error: typ=%s,name=%s,err=%s", fValue.Field(i).Type(), full.name, err))
 						}
 					}
-					fs.TextVar(vv, name, defValue, usage)
+					fs.TextVar(vv, full.name, defValue, full.usage)
 					continue
 				}
 			}
@@ -145,7 +142,7 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 				panic(fmt.Errorf("%s contains parameter type not supported: %s", fType, fType.Field(i).Type))
 			}
 		}
-		if err := fn(fs, fValue.Field(i), name, def, usage); err != nil {
+		if err := fn(fs, fValue.Field(i), full.name, defaultValue, full.usage); err != nil {
 			panic(err)
 		}
 	}

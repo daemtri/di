@@ -5,7 +5,8 @@ import (
 )
 
 type options struct {
-	opts []di.Option
+	opts       []di.Option
+	flagPrefix string
 }
 
 func newOptions() *options {
@@ -31,6 +32,7 @@ func WithName(name string) Option {
 func WithFlags(prefix string) Option {
 	return optionsFunc(func(o *options) {
 		o.opts = append(o.opts, di.WithFlagset(nfs.FlagSet(prefix)))
+		o.flagPrefix = prefix
 	})
 }
 

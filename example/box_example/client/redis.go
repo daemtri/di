@@ -8,7 +8,7 @@ import (
 )
 
 type RedisOptions struct {
-	Host string `flag:"host" default:"127.0.0.1" usage:"redis服务ip地址"`
+	Host string `flag:"host" default:"127.0.0.1" usage:"redis服务ip地址" validate:"required"`
 	Port int    `flag:"port" default:"6379" usage:"redis服务端口"`
 	DB   int    `flag:"db" default:"0" usage:"redis db"`
 }

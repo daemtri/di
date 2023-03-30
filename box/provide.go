@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/daemtri/di"
+	"github.com/daemtri/di/box/validate"
 )
 
 func provide[T any](b Builder[T], opts ...Option) {
@@ -16,7 +17,7 @@ func provide[T any](b Builder[T], opts ...Option) {
 	for i := range opts {
 		opts[i].apply(opt)
 	}
-
+	nfs.SetValidateTags(validate.ParseValidateString(opt.flagPrefix, b))
 	di.Provide[T](b, opt.opts...)
 }
 
