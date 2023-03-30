@@ -1,11 +1,6 @@
 package main
 
 import (
-	"context"
-	"os"
-	"os/signal"
-	"syscall"
-
 	"github.com/daemtri/di/box"
 	"github.com/daemtri/di/example/box_example/bootstrap"
 	"github.com/daemtri/di/example/box_example/client"
@@ -34,14 +29,8 @@ func main() {
 	// register app
 	box.Provide[*bootstrap.App](bootstrap.NewApp)
 
-	// run app
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, os.Kill)
-	defer cancel()
-	app, err := box.Build[*bootstrap.App](ctx)
-	if err != nil {
-		panic(err)
-	}
-	if err := app.Run(); err != nil {
+	// build and run
+	if err := box.Bootstrap[*bootstrap.App](); err != nil {
 		panic(err)
 	}
 }
