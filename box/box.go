@@ -28,6 +28,11 @@ func Default() di.Registry {
 	return defaultRegistrar
 }
 
+// SetDefaultConfigFile
+func SetDefaultConfigFile(file string) {
+	configFile = file
+}
+
 func SetEnvPrefix(prefix string) {
 	envPrefix = prefix
 }
