@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/daemtri/di/box"
+	"github.com/daemtri/di/box/config/yamlconfig"
 	"github.com/daemtri/di/example/box_example/bootstrap"
 	"github.com/daemtri/di/example/box_example/client"
 	"github.com/daemtri/di/example/box_example/contract"
@@ -30,7 +31,9 @@ func main() {
 	box.Provide[*bootstrap.App](bootstrap.NewApp)
 
 	// build and run
-	if err := box.Bootstrap[*bootstrap.App](); err != nil {
+	if err := box.Bootstrap[*bootstrap.App](box.UseInit(
+		yamlconfig.Init(),
+	)); err != nil {
 		panic(err)
 	}
 }

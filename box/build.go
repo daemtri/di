@@ -20,7 +20,8 @@ type Builder[T any] interface {
 }
 
 type buildOptions struct {
-	init func(ctx context.Context) error
+	init          func(ctx context.Context) error
+	configLoaders []Builder[ConfigLoader]
 }
 type BuildOption interface {
 	apply(o *buildOptions)
@@ -30,7 +31,7 @@ type buildOptionsFunc func(o *buildOptions)
 
 func (of buildOptionsFunc) apply(o *buildOptions) { of(o) }
 
-type multiInit []func(context.Context) error
+type multiInit []InitFunc
 
 func (m multiInit) init(ctx context.Context) error {
 	for i := range m {
@@ -41,8 +42,11 @@ func (m multiInit) init(ctx context.Context) error {
 	return nil
 }
 
-func UseInit(fn ...func(context.Context) error) BuildOption {
-	var initFunc func(context.Context) error
+// InitFunc 初始化函数
+type InitFunc func(context.Context) error
+
+func UseInit(fn ...InitFunc) BuildOption {
+	var initFunc InitFunc
 	if len(fn) == 1 {
 		initFunc = fn[0]
 	} else {
@@ -50,6 +54,15 @@ func UseInit(fn ...func(context.Context) error) BuildOption {
 	}
 	return buildOptionsFunc(func(o *buildOptions) {
 		o.init = initFunc
+	})
+}
+
+func UseConfigLoader(cl ...Builder[ConfigLoader]) BuildOption {
+	return buildOptionsFunc(func(o *buildOptions) {
+		if o.configLoaders == nil {
+			o.configLoaders = make([]Builder[ConfigLoader], 0, len(cl))
+		}
+		o.configLoaders = append(o.configLoaders, cl...)
 	})
 }
 
@@ -66,12 +79,17 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 			slog.Warn("godotenv.Load failed", "err", err)
 		}
 	}
-	nfs.FlagSet().StringVar(&configFile, "config", configFile, "configuration file path")
+
+	for i := range opt.configLoaders {
+		provide[ConfigLoader](&ConfigLoaderBuilder{OriginBuilder: opt.configLoaders[i], source: flagx.NewSource("x")})
+	}
+
 	printConfig := nfs.FlagSet().Bool("print-config", false, "print configuration information")
 	nfs.BindFlagSet(flag.CommandLine, envPrefix)
+	nfs.FlagSet().StringVar(&configFile, "config", configFile, "configuration file path")
 	if items, err := configLoadFunc(configFile); err != nil {
 		slog.Warn("local configuration file not found", "error", err.Error())
-	} else if err := SetConfig(items, flagx.SourceFile); err != nil {
+	} else if err := SetConfig(items, flagx.SourceLocal); err != nil {
 		slog.Warn("set local configuration failed", "error", err.Error())
 	}
 

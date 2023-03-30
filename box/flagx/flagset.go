@@ -7,32 +7,6 @@ import (
 	"strings"
 )
 
-type Source int
-
-func (s Source) String() string {
-	switch s {
-	case SourceNone:
-		return "none"
-	case SourceRemote:
-		return "remote"
-	case SourceFile:
-		return "file"
-	case SourceEnvrioment:
-		return "env"
-	case SourceArgs:
-		return "args"
-	}
-	return fmt.Sprintf("unknown source: %d", s)
-}
-
-const (
-	SourceNone Source = iota
-	SourceRemote
-	SourceFile
-	SourceEnvrioment
-	SourceArgs
-)
-
 // NamedFlagSets 存储了命名参数集合
 type NamedFlagSets struct {
 	// order 为命名参数的名称排序
@@ -85,7 +59,7 @@ func envKey(prefix string, name string) (key string) {
 
 // CanSet 判断key是否可以被source设置,如果已经被更高优先级的source设置，则返回false
 func (nfs *NamedFlagSets) CanSet(key string, source Source) bool {
-	return nfs.keySource[key] <= source
+	return source.order() <= nfs.keySource[key].order()
 }
 
 type envFlag struct {
@@ -122,11 +96,11 @@ func (nfs *NamedFlagSets) BindFlagSet(fs *flag.FlagSet, envPrefix string) {
 	nfs.keySource = make(map[string]Source, fs.NFlag())
 	// record os.Args flags
 	fs.Visit(func(f *flag.Flag) {
-		nfs.keySource[f.Name] = SourceArgs
+		nfs.keySource[f.Name] = sourceArgs
 	})
 	// parse flags from env
 	for i := range envFlags {
-		if !nfs.CanSet(envFlags[i].flagKey, SourceEnvrioment) {
+		if !nfs.CanSet(envFlags[i].flagKey, sourceEnvrioment) {
 			continue
 		}
 		envValue, ok := os.LookupEnv(envFlags[i].envKey)
@@ -136,7 +110,7 @@ func (nfs *NamedFlagSets) BindFlagSet(fs *flag.FlagSet, envPrefix string) {
 		if err := fs.Set(envFlags[i].flagKey, envValue); err != nil {
 			panic(err)
 		}
-		nfs.keySource[envFlags[i].flagKey] = SourceEnvrioment
+		nfs.keySource[envFlags[i].flagKey] = sourceEnvrioment
 	}
 }
 

@@ -7,7 +7,6 @@ import (
 
 	"github.com/daemtri/di"
 	config "github.com/daemtri/di/box/config/jsonconfig"
-	"github.com/daemtri/di/box/config/yamlconfig"
 	"github.com/daemtri/di/box/flagx"
 )
 
@@ -19,8 +18,8 @@ var (
 
 	envPrefix = "GF"
 
-	configFile     = "./config.yaml"
-	configLoadFunc = yamlconfig.Load
+	configFile = "./config.yaml"
+	// configLoadFunc = yamlconfig.Load
 )
 
 // Default 返回默认di.Registry
