@@ -1,42 +1,30 @@
 package di
 
 import (
+	"context"
+	"fmt"
 	"reflect"
 )
 
-// Registry 持有所有注册的构造器
-type Registry struct {
-	*container
+var (
+	reg = NewRegistry()
+)
 
-	name     string
-	override bool
+func GetRegistry() Registry {
+	return reg
 }
 
-// NewRegistry 创建并初始化对象容器
+// Registry holds all the registered constructors
+type Registry struct {
+	*container
+}
+
+// NewRegistry create and initialize object container
 func NewRegistry() Registry {
 	return Registry{
 		container: &container{
-			constructors: make(map[reflect.Type]Constructor),
+			constructors: make(map[reflect.Type]*constructorGroup),
 		},
-	}
-}
-
-func (r Registry) Override() Registry {
-	return Registry{
-		name:      r.name,
-		override:  true,
-		container: r.container,
-	}
-}
-
-func (r Registry) Named(name string) Registry {
-	if name == "" {
-		panic("注册命名对象错误: name为空字符串")
-	}
-	return Registry{
-		name:      name,
-		override:  r.override,
-		container: r.container,
 	}
 }
 
@@ -53,16 +41,53 @@ func (v Value) Builder() any {
 	return v.constructor.builder
 }
 
-// VisitAll 遍历所有已经构建的构造器
+// VisitAll Iterate all the built constructors
 func (r Registry) Visit(fn func(v Value)) {
 	for _, c := range r.constructors {
-		switch v := c.(type) {
-		case *constructor:
-			fn(Value{constructor: v})
-		case *multiConstructor:
-			for k, nv := range v.cs {
-				fn(Value{Name: k, constructor: nv.(*constructor)})
-			}
+		for name, v := range c.groups {
+			fn(Value{
+				Name:        name,
+				constructor: v,
+			})
 		}
 	}
+}
+
+func (r Registry) Provide(typ reflect.Type, flaggerBuilder any, buildFunc func(context.Context) (any, error), opts ...Option) {
+	if typ.Kind() == reflect.Slice || typ.Kind() == reflect.Map {
+		// Don't allow providing slices or maps, because they're used to
+		// get all instances of the same type.
+		// You can provide a type multiple times and use a slice or map to get them all.
+		// You can also nest slices or maps inside structs and provide the struct.
+		panic(fmt.Errorf("type: %s is not allowed to be provided", typ))
+	}
+
+	provideOptions := resolveOptions(opts...)
+	sf := newStructFlagger(flaggerBuilder)
+	if group, ok := r.constructors[typ]; ok {
+		if group.exists(provideOptions.name) {
+			if !provideOptions.override {
+				panic(fmt.Errorf("type: %s, Name: %s already exists", typ, provideOptions.name))
+			}
+		}
+	} else {
+		r.constructors[typ] = newConstructorGroup()
+	}
+	if provideOptions.flagset != nil {
+		sf.AddFlags(provideOptions.flagset)
+	}
+	c := &constructor{
+		builder:           flaggerBuilder,
+		validateFlagsFunc: sf.ValidateFlags,
+		buildFunc:         buildFunc,
+		selections:        provideOptions.selections,
+		implements:        provideOptions.implements,
+	}
+	if err := r.constructors[typ].add(provideOptions.name, c); err != nil {
+		panic(fmt.Errorf("type: %s, Name: %s add failed: %s", typ, provideOptions.name, err))
+	}
+}
+
+func (r Registry) ValidateFlags() error {
+	return r.container.validateFlags()
 }

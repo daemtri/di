@@ -5,31 +5,22 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/daemtri/di"
+	"github.com/daemtri/di/box/flagx"
+	"github.com/daemtri/di/container"
 	"github.com/joho/godotenv"
 	"golang.org/x/exp/slog"
 )
 
-type BBuilder[T any] interface {
+type Builder[T any] interface {
 	Build(ctx context.Context) (T, error)
 }
 
-type bBuilderFunc[T any] struct {
-	BBuilder[T]
-}
-
-func (b *bBuilderFunc[T]) Build(ctx Context) (T, error) {
-	return b.BBuilder.Build(ctx.Unwrap())
-}
-
-type Builder[T any] interface {
-	Build(ctx Context) (T, error)
-}
-
 type buildOptions struct {
-	name string
-	init func(ctx Context) error
+	init func(ctx context.Context) error
 }
 type BuildOption interface {
 	apply(o *buildOptions)
@@ -39,25 +30,19 @@ type buildOptionsFunc func(o *buildOptions)
 
 func (of buildOptionsFunc) apply(o *buildOptions) { of(o) }
 
-func Select(name string) BuildOption {
-	return buildOptionsFunc(func(o *buildOptions) {
-		o.name = name
-	})
-}
+type multiInit []func(context.Context) error
 
-type multiInit []func(Context) error
-
-func (m multiInit) init(ctx Context) error {
+func (m multiInit) init(ctx context.Context) error {
 	for i := range m {
 		if err := m[i](ctx); err != nil {
-			return fmt.Errorf("运行(%T)返回错误: %w", m[i], err)
+			return fmt.Errorf("execution of (%T) returned error: %w", m[i], err)
 		}
 	}
 	return nil
 }
 
-func UseInit(fn ...func(Context) error) BuildOption {
-	var initFunc func(Context) error
+func UseInit(fn ...func(context.Context) error) BuildOption {
+	var initFunc func(context.Context) error
 	if len(fn) == 1 {
 		initFunc = fn[0]
 	} else {
@@ -78,15 +63,18 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 
 	if err := godotenv.Load(); err != nil {
 		if !os.IsNotExist(err) {
-			slog.Warn("godotenv.Load失败", "err", err)
+			slog.Warn("godotenv.Load failed", "err", err)
 		}
 	}
-	nfs.FlagSet().StringVar(&configFile, "config", configFile, "配置文件地址")
-	printConfig := nfs.FlagSet().Bool("print-config", false, "打印配置信息")
-	nfs.BindEnvAndFlags(envPrefix, flag.CommandLine)
-	if err := configLoadFunc(configFile, flag.CommandLine); err != nil {
-		slog.Warn("配置文件加载错误", "error", err.Error())
+	nfs.FlagSet().StringVar(&configFile, "config", configFile, "configuration file path")
+	printConfig := nfs.FlagSet().Bool("print-config", false, "print configuration information")
+	nfs.BindFlagSet(flag.CommandLine, envPrefix)
+	if items, err := configLoadFunc(configFile); err != nil {
+		slog.Warn("local configuration file not found", "error", err.Error())
+	} else if err := SetConfig(items, flagx.SourceFile); err != nil {
+		slog.Warn("set local configuration failed", "error", err.Error())
 	}
+
 	if *printConfig {
 		err := EncodeFlags(os.Stdout)
 		if err != nil {
@@ -95,17 +83,13 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 		}
 		os.Exit(0)
 	}
-	reg := defaultRegistrar
 
-	if opt.name != "" {
-		reg = defaultRegistrar.Named(opt.name)
-	}
 	if opt.init != nil {
 		Provide[*initializer[T]](&initializer[T]{
 			beforeFunc: opt.init,
 		})
 		nfsIsParsed = true
-		agent, err := di.Build[*initializer[T]](reg, ctx)
+		agent, err := di.Build[*initializer[T]](ctx)
 		if err != nil {
 			return emptyValue[T](), err
 		}
@@ -113,21 +97,26 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 	}
 	nfsIsParsed = true
 
-	return di.Build[T](reg, ctx)
+	return di.Build[T](ctx)
 }
 
-func Must[T any](ctx Context) T {
-	if st, ok := ctx.(*reflectSelectedContext); ok {
-		return di.Must[T](st.SelectContext(reflectType[T]()))
+func Invoke[T any](ctx context.Context) T {
+	return container.Invoke[T](ctx)
+}
+
+// Runable defined a object that can be run
+type Runable interface {
+	Run(ctx context.Context) error
+}
+
+// Bootstrap use to build and run a object
+// it will block until the object is stopped
+func Bootstrap[T Runable](opts ...BuildOption) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
+	defer cancel()
+	app, err := Build[T](ctx, opts...)
+	if err != nil {
+		return err
 	}
-	return di.Must[T](ctx)
-}
-
-func MustAll[T any](ctx Context) map[string]T {
-	return di.MustAll[T](ctx)
-}
-
-// Exists 判断类型T是否已经在容器内提供了
-func Exists[T any](ctx Context) bool {
-	return di.Exists[T](ctx)
+	return app.Run(ctx)
 }

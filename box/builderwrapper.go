@@ -7,11 +7,12 @@ import (
 	"reflect"
 
 	"github.com/daemtri/di"
+	"github.com/daemtri/di/box/validate"
+	"github.com/daemtri/di/container"
 )
 
 var (
 	errType    = reflect.TypeOf(func() error { return nil }).Out(0)
-	ctxType    = reflect.TypeOf(func(Context) {}).In(0)
 	stdCtxType = reflect.TypeOf(func(context.Context) {}).In(0)
 	flagAdder  = reflect.TypeOf(func(interface{ AddFlags(fs *flag.FlagSet) }) {}).In(0)
 )
@@ -53,33 +54,33 @@ func isFlagSetProvider(v reflect.Type) bool {
 	return false
 }
 
-func OptionFunc[T, K any](fn func(ctx Context, option K) (T, error)) *di.InjectBuilder[T, K] {
-	return di.Inject[T, K](fn)
+func OptionFunc[T, K any](fn func(ctx context.Context, option K) (T, error)) *di.InjectBuilder[T, K] {
+	return di.Inject(fn)
 }
 
-func Inject[T any](fn any, opt any) Builder[T] {
+func newDynamicParamsFunctionBuilder[T any](fn any, opt any) Builder[T] {
 	fnType := reflect.TypeOf(fn)
 
 	// 判断fn合法性
 	if fnType.Kind() != reflect.Func {
-		panic("ProvideInject只支持函数类型")
+		panic("ProvideInject only supports function types")
 	}
 	if fnType.NumOut() != 2 {
-		panic("ProvideInject 函数必须返回2个参数: (T,error) 或者 (X, error),X 实现了T接口")
+		panic("provideInject must return two parameters: (T,error) or (X,error), where X implements T")
 	}
 	pTyp := reflectType[T]()
 	if pTyp.Kind() == reflect.Interface {
 		if !fnType.Out(0).Implements(pTyp) {
-			panic(fmt.Errorf("ProvideInject 函数返回值类型 %s 未实现 %s", fnType.Out(0), pTyp))
+			panic(fmt.Errorf("ProvideInject return type %s not implemented %s", fnType.Out(0), pTyp))
 		}
 	} else if pTyp != fnType.Out(0) {
-		panic(fmt.Errorf("ProvideInject 函数返回值类型 %s != %s", fnType.Out(0), pTyp))
+		panic(fmt.Errorf("ProvideInject return value type %s != %s", fnType.Out(0), pTyp))
 	}
 	if fnType.Out(1) != errType {
-		panic(fmt.Errorf("ProvideInject 函数第二个返回值必须为 %s", errType))
+		panic(fmt.Errorf("the second return value of the ProvideInject function must be %s", errType))
 	}
 
-	ib := &injectBuilder[T]{
+	ib := &dynamicParamsFunctionBuilder[T]{
 		fnType:  fnType,
 		fnValue: reflect.ValueOf(fn),
 	}
@@ -110,20 +111,24 @@ func Inject[T any](fn any, opt any) Builder[T] {
 	return ib
 }
 
-type injectBuilder[T any] struct {
-	Option any `flag:",nested"`
+// dynamicParamsFunctionBuilder Dynamic parameter function builder.
+// The function can be called with any number of parameters, and return (T, error)
+type dynamicParamsFunctionBuilder[T any] struct {
+	Option any `flag:""`
 
 	optionIndex int
 	fnValue     reflect.Value
 	fnType      reflect.Type
 }
 
-type reflectBuilder interface {
-	Exists(p reflect.Type) bool
-	Must(p reflect.Type) any
+func (ib *dynamicParamsFunctionBuilder[T]) ValidateFlags() error {
+	if ib.Option == nil {
+		return nil
+	}
+	return validate.Struct(ib.Option)
 }
 
-func (ib *injectBuilder[T]) Build(ctx Context) (T, error) {
+func (ib *dynamicParamsFunctionBuilder[T]) Build(ctx context.Context) (T, error) {
 	defer func() {
 		if e := recover(); e != nil {
 			t := reflectType[T]()
@@ -136,20 +141,11 @@ func (ib *injectBuilder[T]) Build(ctx Context) (T, error) {
 			inValues = append(inValues, reflect.ValueOf(ib.Option))
 			continue
 		}
-		if ib.fnType.In(i) == ctxType {
+		if ib.fnType.In(i) == stdCtxType {
 			inValues = append(inValues, reflect.ValueOf(ctx))
 			continue
 		}
-		if ib.fnType.In(i) == stdCtxType {
-			inValues = append(inValues, reflect.ValueOf(ctx.Unwrap()))
-			continue
-		}
-
-		lCtx := ctx
-		if st, ok := ctx.(*reflectSelectedContext); ok {
-			lCtx = st.SelectContext(ib.fnType.In(i))
-		}
-		v := lCtx.(reflectBuilder).Must(ib.fnType.In(i))
+		v := ctx.Value(container.ContextKey).(container.Interface).Invoke(ctx, ib.fnType.In(i))
 		inValues = append(inValues, reflect.ValueOf(v))
 	}
 
@@ -160,59 +156,30 @@ func (ib *injectBuilder[T]) Build(ctx Context) (T, error) {
 	return emptyValue[T](), ret[1].Interface().(error)
 }
 
-// instanceBuilder
 type instanceBuilder[T any] struct {
-	Instance T `flag:",nested"`
+	instance T
 }
 
-func Instance[T any](v T) Builder[T] {
+func newInstanceBuilder[T any](instance T) Builder[T] {
 	return &instanceBuilder[T]{
-		Instance: v,
+		instance: instance,
 	}
 }
 
-func (b *instanceBuilder[T]) Build(ctx Context) (T, error) {
-	refTyp := reflect.TypeOf(b.Instance)
-	refVal := reflect.ValueOf(b.Instance)
+func (ib *instanceBuilder[T]) Build(ctx context.Context) (T, error) {
+	return ib.instance, nil
+}
 
-	if refTyp.Kind() == reflect.Pointer {
-		refTyp = refTyp.Elem()
-		refVal = refVal.Elem()
+type validateAbleBuilder[T any] struct {
+	Builder[T] `flag:""`
+}
+
+func newValidateAbleBuilder[T any](builder Builder[T]) Builder[T] {
+	return &validateAbleBuilder[T]{
+		Builder: builder,
 	}
+}
 
-	if refTyp.Kind() != reflect.Struct {
-		return b.Instance, nil
-	}
-
-	for i := 0; i < refTyp.NumField(); i++ {
-		if !refVal.Field(i).CanSet() {
-			continue
-		}
-		injectType, ok := refTyp.Field(i).Tag.Lookup("inject")
-		if !ok {
-			continue
-		}
-		if injectType == "must" {
-			lCtx := ctx
-			if st, ok := ctx.(*reflectSelectedContext); ok {
-				lCtx = st.SelectContext(refTyp.Field(i).Type)
-			}
-			v := lCtx.(reflectBuilder).Must(refTyp.Field(i).Type)
-			refVal.Field(i).Set(reflect.ValueOf(v))
-			continue
-		}
-		if injectType == "exists" {
-			lCtx := ctx
-			if st, ok := ctx.(*reflectSelectedContext); ok {
-				lCtx = st.SelectContext(refTyp.Field(i).Type)
-			}
-			if lCtx.(reflectBuilder).Exists(refTyp.Field(i).Type) {
-				v := lCtx.(reflectBuilder).Must(refTyp.Field(i).Type)
-				refVal.Field(i).Set(reflect.ValueOf(v))
-			}
-			continue
-		}
-	}
-
-	return b.Instance, nil
+func (wb *validateAbleBuilder[T]) ValidateFlags() error {
+	return validate.Struct(wb.Builder)
 }

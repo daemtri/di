@@ -1,64 +1,91 @@
 package di
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"reflect"
 )
 
-func provideWithName[T any](reg Registry, b Builder[T], sf *structFlagger) Constructor {
-	typ := reflectType[T]()
-	var mb *multiConstructor
-	if c, ok := reg.constructors[typ]; ok {
-		mb, ok = c.(*multiConstructor)
-		if !ok {
-			panic(fmt.Errorf("provided %s 错误,已存在非命名对象", typ))
-		}
-		if mb.exists(reg.name) && !reg.override {
-			panic(fmt.Errorf("provided %s:%s already exists", typ, reg.name))
-		}
-	} else {
-		mb = &multiConstructor{cs: make(map[string]Constructor)}
-	}
-
-	c := &constructor{
-		builder:           b,
-		addFlags:          sf.AddFlags,
-		validateFlagsFunc: sf.ValidateFlags,
-		buildFunc: func(ctx Context) (any, error) {
-			return b.Build(ctx)
-		},
-	}
-	mb.cs[reg.name] = c
-	mb.current = c
-	reg.constructors[typ] = mb
-	return mb
+type options struct {
+	name       string
+	override   bool
+	flagset    *flag.FlagSet
+	selections map[reflect.Type]string
+	implements map[reflect.Type]reflect.Type
 }
 
-// Provide 向容器中注册构建器
-func Provide[T any](reg Registry, b Builder[T]) Constructor {
-	typ := reflectType[T]()
-	sf := &structFlagger{
-		builder: b,
-		typ:     reflect.TypeOf(b),
-		val:     reflect.ValueOf(b),
+func resolveOptions(opts ...Option) options {
+	var provideOptions options
+	for _, opt := range opts {
+		opt.apply(&provideOptions)
 	}
-	if reg.name != "" {
-		return provideWithName(reg, b, sf)
-	}
-	if _, ok := reg.constructors[typ]; ok {
-		if !reg.override {
-			panic(fmt.Errorf("provided %s already exists", typ))
-		}
-	}
+	return provideOptions
+}
 
-	c := &constructor{
-		builder:           b,
-		addFlags:          sf.AddFlags,
-		validateFlagsFunc: sf.ValidateFlags,
-		buildFunc: func(ctx Context) (any, error) {
-			return b.Build(ctx)
-		},
-	}
-	reg.constructors[typ] = c
-	return c
+type Option interface {
+	apply(*options)
+}
+
+type optionFunc func(*options)
+
+func (o optionFunc) apply(opts *options) {
+	o(opts)
+}
+
+func WithName(name string) Option {
+	return optionFunc(func(opts *options) {
+		opts.name = name
+	})
+}
+
+func WithOverride() Option {
+	return optionFunc(func(opts *options) {
+		opts.override = true
+	})
+}
+
+func WithFlagset(fs *flag.FlagSet) Option {
+	return optionFunc(func(opts *options) {
+		opts.flagset = fs
+	})
+}
+
+func WithSelect[T any](name string) Option {
+	return optionFunc(func(opts *options) {
+		if opts.selections == nil {
+			opts.selections = make(map[reflect.Type]string)
+		}
+		opts.selections[reflectType[T]()] = name
+	})
+}
+
+// WithImplement use to specify the implementation of interface
+// the first type is interface, the second type is implementation
+func WithImplement[I any, T any]() Option {
+	return optionFunc(func(opts *options) {
+		if opts.implements == nil {
+			opts.implements = make(map[reflect.Type]reflect.Type)
+		}
+		iType := reflectType[I]()
+		tType := reflectType[T]()
+		if iType.Kind() != reflect.Interface {
+			panic(fmt.Errorf("type: %s is not interface", iType))
+		}
+		if !tType.Implements(iType) {
+			panic(fmt.Errorf("type: %s does not implement interface: %s", tType, iType))
+		}
+		if _, ok := opts.implements[iType]; ok {
+			panic(fmt.Errorf("interface: %s already has implementation: %s", iType, opts.implements[iType]))
+		}
+		opts.implements[iType] = tType
+	})
+}
+
+// Provide is used to provide a type T to the container.
+// The provided type T must be a struct or a pointer to a struct, or a interface
+func Provide[T any](b Builder[T], opts ...Option) {
+	reg.Provide(reflectType[T](), b, func(ctx context.Context) (any, error) {
+		return b.Build(ctx)
+	}, opts...)
 }

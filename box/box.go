@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	defaultRegistrar = di.NewRegistry()
+	defaultRegistrar = di.GetRegistry()
 
 	nfs         = flagx.NamedFlagSets{}
 	nfsIsParsed bool
@@ -28,11 +28,16 @@ func Default() di.Registry {
 	return defaultRegistrar
 }
 
+// SetDefaultConfigFile
+func SetDefaultConfigFile(file string) {
+	configFile = file
+}
+
 func SetEnvPrefix(prefix string) {
 	envPrefix = prefix
 }
 
-func SetConfigLoader(defaultFile string, fn func(configFile string, fs *flag.FlagSet) error) {
+func SetConfigLoader(defaultFile string, fn func(configFile string) ([]config.ConfigItem, error)) {
 	configFile = defaultFile
 	if fn != nil {
 		configLoadFunc = fn
@@ -42,8 +47,6 @@ func SetConfigLoader(defaultFile string, fn func(configFile string, fs *flag.Fla
 func FlagSet(name ...string) *flag.FlagSet {
 	return nfs.FlagSet(name...)
 }
-
-type Context = di.Context
 
 // Retrofiter 定义了一个可以重新构建对象的接口
 type Retrofiter interface {
@@ -68,20 +71,20 @@ func retrofit() error {
 }
 
 // SetConfig 设置配置
-func SetConfig(items []config.ConfigItem) error {
-	var err error
+func SetConfig(items []config.ConfigItem, source flagx.Source) error {
+	var errs error
 	for _, item := range items {
-		if err1 := flag.CommandLine.Set(item.Key, item.Value); err != nil {
-			err = errors.Join(err, fmt.Errorf("配置变更失败: key=%s,value=%s,error=%s", item.Key, item.Value, err1))
+		if err := nfs.Set(item.Key, item.Value, source); err != nil {
+			errs = errors.Join(errs, fmt.Errorf("配置变更失败: key=%s,value=%s,error=%s", item.Key, item.Value, err))
 		}
 	}
 	err2 := defaultRegistrar.ValidateFlags()
 	if err2 != nil {
-		err = errors.Join(err, err2)
+		errs = errors.Join(errs, err2)
 	}
 	err3 := retrofit()
 	if err3 != nil {
-		err = errors.Join(err, err3)
+		errs = errors.Join(errs, err3)
 	}
-	return err
+	return errs
 }

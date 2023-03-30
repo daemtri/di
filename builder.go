@@ -2,80 +2,49 @@ package di
 
 import (
 	"context"
-	"fmt"
 )
 
-// Builder 定义了对象构建器
+// Builder defines the object builder
 type Builder[T any] interface {
-	Build(ctx Context) (T, error)
+	Build(ctx context.Context) (T, error)
 }
 
-// Exists 断言某个类型已经Provided
-// 如果ctx.Select了name，则判断name是否存在
-func Exists[T any](ctx Context) bool {
+// Build builds a specified object. Build cannot build a named object.
+func Build[T any](ctx context.Context) (T, error) {
+	ctx2 := withContext(ctx, newBaseContext(reg.container))
 	typ := reflectType[T]()
-	s, ok := ctx.container().constructors[typ]
-	if !ok {
-		return false
-	}
-	if ctx.name() != "" {
-		mtb, ok := s.(*multiConstructor)
-		if ok {
-			return mtb.exists(ctx.name())
-		}
-	}
-	return true
-}
-
-// Must 只能在BuildFactory中使用
-func Must[T any](ctx Context) T {
-	typ := reflectType[T]()
-	v, err := ctx.container().build(ctx, typ)
-	if err != nil {
-		panic(fmt.Errorf("must 构建失败： %s", err))
-	}
-	return v.(T)
-}
-
-// MustAll 构建某个类型的所有注册对象
-func MustAll[T any](ctx Context) map[string]T {
-	typ := reflectType[T]()
-	s, ok := ctx.container().constructors[typ]
-	if !ok {
-		panic(fmt.Errorf("类型: %s不存在", typ))
-	}
-	mtb, ok := s.(*multiConstructor)
-	if !ok {
-		v, err := ctx.container().build(ctx, typ)
-		if err != nil {
-			panic(err)
-		}
-		return map[string]T{"": v.(T)}
-	}
-	values := make(map[string]T, len(mtb.cs))
-	for name := range mtb.cs {
-		v, err := ctx.container().build(ctx.Select(name), typ)
-		if err != nil {
-			panic(err)
-		}
-		values[name] = v.(T)
-	}
-	return values
-}
-
-// Build 构建一个指定对象
-func Build[T any](reg Registry, ctx context.Context) (T, error) {
-	if err := reg.ValidateFlags(); err != nil {
-		return emptyValue[T](), err
-	}
-	var c Context = wrapContext(ctx, reg.container)
-	if reg.name != "" {
-		c = c.Select(reg.name)
-	}
-	typ := reflectType[T]()
-	v, err := reg.build(c, typ)
+	v, err := reg.build(ctx2, typ, "")
 	if err != nil {
 		return emptyValue[T](), err
 	}
 	return v.(T), err
+}
+
+type BuildFunc[T any] struct {
+	// Functions are defined in the structure,
+	// forced to not automatically infer the type information provided at registration,
+	// so that you can view the registration contents
+	fn func(context.Context) (T, error)
+}
+
+func (bf BuildFunc[T]) Build(c context.Context) (T, error) {
+	return bf.fn(c)
+}
+
+func Func[T any](fn func(ctx context.Context) (T, error)) BuildFunc[T] {
+	return BuildFunc[T]{fn: fn}
+}
+
+type InjectBuilder[T any, K any] struct {
+	Opt K `flag:""`
+	fn  func(context.Context, K) (T, error)
+}
+
+func (ib *InjectBuilder[T, K]) Build(c context.Context) (T, error) {
+	return ib.fn(c, ib.Opt)
+}
+
+func Inject[T any, K any](fn func(ctx context.Context, option K) (T, error)) *InjectBuilder[T, K] {
+	opt := reflectNew[K]()
+	return &InjectBuilder[T, K]{fn: fn, Opt: opt}
 }
