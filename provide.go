@@ -83,6 +83,14 @@ func WithImplement[I any, T any]() Option {
 }
 
 func provide(typ reflect.Type, flaggerBuilder any, buildFunc func(context.Context) (any, error), opts ...Option) {
+	if typ.Kind() != reflect.Slice && typ.Kind() != reflect.Map {
+		// Don't allow providing slices or maps, because they're used to
+		// get all instances of the same type.
+		// You can provide a type multiple times and use a slice or map to get them all.
+		// You can also nest slices or maps inside structs and provide the struct.
+		panic(fmt.Errorf("type: %s is not allowed to be provided", typ))
+	}
+
 	provideOptions := resolveOptions(opts...)
 
 	sf := newStructFlagger(flaggerBuilder)
