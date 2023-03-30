@@ -104,10 +104,13 @@ func Invoke[T any](ctx context.Context) T {
 	return container.Invoke[T](ctx)
 }
 
+// Runable defined a object that can be run
 type Runable interface {
 	Run(ctx context.Context) error
 }
 
+// Bootstrap use to build and run a object
+// it will block until the object is stopped
 func Bootstrap[T Runable](opts ...BuildOption) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
 	defer cancel()

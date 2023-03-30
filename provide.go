@@ -82,46 +82,10 @@ func WithImplement[I any, T any]() Option {
 	})
 }
 
-func provide(typ reflect.Type, flaggerBuilder any, buildFunc func(context.Context) (any, error), opts ...Option) {
-	if typ.Kind() != reflect.Slice && typ.Kind() != reflect.Map {
-		// Don't allow providing slices or maps, because they're used to
-		// get all instances of the same type.
-		// You can provide a type multiple times and use a slice or map to get them all.
-		// You can also nest slices or maps inside structs and provide the struct.
-		panic(fmt.Errorf("type: %s is not allowed to be provided", typ))
-	}
-
-	provideOptions := resolveOptions(opts...)
-
-	sf := newStructFlagger(flaggerBuilder)
-	if group, ok := reg.constructors[typ]; ok {
-		if group.exists(provideOptions.name) {
-			if !provideOptions.override {
-				panic(fmt.Errorf("type: %s, Name: %s already exists", typ, provideOptions.name))
-			}
-		}
-	} else {
-		reg.constructors[typ] = newConstructorGroup()
-	}
-	if provideOptions.flagset != nil {
-		sf.AddFlags(provideOptions.flagset)
-	}
-	c := &constructor{
-		builder:           flaggerBuilder,
-		validateFlagsFunc: sf.ValidateFlags,
-		buildFunc:         buildFunc,
-		selections:        provideOptions.selections,
-		implements:        provideOptions.implements,
-	}
-	if err := reg.constructors[typ].add(provideOptions.name, c); err != nil {
-		panic(fmt.Errorf("type: %s, Name: %s add failed: %s", typ, provideOptions.name, err))
-	}
-}
-
 // Provide is used to provide a type T to the container.
 // The provided type T must be a struct or a pointer to a struct, or a interface
 func Provide[T any](b Builder[T], opts ...Option) {
-	provide(reflectType[T](), b, func(ctx context.Context) (any, error) {
+	reg.Provide(reflectType[T](), b, func(ctx context.Context) (any, error) {
 		return b.Build(ctx)
 	}, opts...)
 }

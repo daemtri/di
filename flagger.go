@@ -8,6 +8,16 @@ import (
 	"strings"
 )
 
+var (
+	validateFunc = func(x any) error {
+		return nil
+	}
+)
+
+func SetValidator(fn func(x any) error) {
+	validateFunc = fn
+}
+
 func isFlag(fieldTyp reflect.StructField) bool {
 	_, ok := fieldTyp.Tag.Lookup("flag")
 	return ok
@@ -131,7 +141,7 @@ func parseStruct(fs *flag.FlagSet, pfx prefix, fType reflect.Type, fValue reflec
 							panic(fmt.Errorf("parse default value error: typ=%s,name=%s,err=%s", fValue.Field(i).Type(), name, err))
 						}
 					}
-					textVar(fs, vv, name, defValue, usage)
+					fs.TextVar(vv, name, defValue, usage)
 					continue
 				}
 			}

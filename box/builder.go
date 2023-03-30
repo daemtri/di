@@ -57,7 +57,7 @@ func OptionFunc[T, K any](fn func(ctx context.Context, option K) (T, error)) *di
 	return di.Inject(fn)
 }
 
-func Inject[T any](fn any, opt any) Builder[T] {
+func newDynamicParamsFunctionBuilder[T any](fn any, opt any) Builder[T] {
 	fnType := reflect.TypeOf(fn)
 
 	// 判断fn合法性
@@ -79,7 +79,7 @@ func Inject[T any](fn any, opt any) Builder[T] {
 		panic(fmt.Errorf("the second return value of the ProvideInject function must be %s", errType))
 	}
 
-	ib := &injectBuilder[T]{
+	ib := &dynamicParamsFunctionBuilder[T]{
 		fnType:  fnType,
 		fnValue: reflect.ValueOf(fn),
 	}
@@ -110,7 +110,9 @@ func Inject[T any](fn any, opt any) Builder[T] {
 	return ib
 }
 
-type injectBuilder[T any] struct {
+// dynamicParamsFunctionBuilder Dynamic parameter function builder.
+// The function can be called with any number of parameters, and return (T, error)
+type dynamicParamsFunctionBuilder[T any] struct {
 	Option any `flag:""`
 
 	optionIndex int
@@ -118,7 +120,7 @@ type injectBuilder[T any] struct {
 	fnType      reflect.Type
 }
 
-func (ib *injectBuilder[T]) Build(ctx context.Context) (T, error) {
+func (ib *dynamicParamsFunctionBuilder[T]) Build(ctx context.Context) (T, error) {
 	defer func() {
 		if e := recover(); e != nil {
 			t := reflectType[T]()
@@ -144,4 +146,18 @@ func (ib *injectBuilder[T]) Build(ctx context.Context) (T, error) {
 		return ret[0].Interface().(T), nil
 	}
 	return emptyValue[T](), ret[1].Interface().(error)
+}
+
+type instanceBuilder[T any] struct {
+	instance T
+}
+
+func newInstanceBuilder[T any](instance T) Builder[T] {
+	return &instanceBuilder[T]{
+		instance: instance,
+	}
+}
+
+func (ib *instanceBuilder[T]) Build(ctx context.Context) (T, error) {
+	return ib.instance, nil
 }
