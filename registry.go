@@ -87,3 +87,7 @@ func (r Registry) Provide(typ reflect.Type, flaggerBuilder any, buildFunc func(c
 		panic(fmt.Errorf("type: %s, Name: %s add failed: %s", typ, provideOptions.name, err))
 	}
 }
+
+func (r Registry) ValidateFlags() error {
+	return r.container.validateFlags()
+}

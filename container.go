@@ -64,8 +64,8 @@ type container struct {
 	constructors map[reflect.Type]*constructorGroup
 }
 
-// ValidateFlags validates the given flags.
-func (c *container) ValidateFlags() error {
+// validateFlags validates the given flags.
+func (c *container) validateFlags() error {
 	var err error
 	for i := range c.constructors {
 		m := c.constructors[i]
@@ -105,6 +105,9 @@ func (c *container) build(ctx context.Context, typ reflect.Type, name string) (a
 	}()
 	if err := checkContext(newLocalCtx); err != nil {
 		return nil, err
+	}
+	if err := cst.validateFlags(); err != nil {
+		return nil, fmt.Errorf("validate flags error: %w", err)
 	}
 	rtn, err := cst.build(withContext(ctx, newLocalCtx))
 	if err != nil {

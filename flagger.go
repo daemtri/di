@@ -8,16 +8,6 @@ import (
 	"strings"
 )
 
-var (
-	validateFunc = func(x any) error {
-		return nil
-	}
-)
-
-func SetValidator(fn func(x any) error) {
-	validateFunc = fn
-}
-
 func isFlag(fieldTyp reflect.StructField) bool {
 	_, ok := fieldTyp.Tag.Lookup("flag")
 	return ok
@@ -204,6 +194,5 @@ func (sf *structFlagger) ValidateFlags() error {
 	if optImpl, ok := sf.options.(interface{ ValidateFlags() error }); ok {
 		return optImpl.ValidateFlags()
 	}
-
-	return validateFunc(sf.val.Interface())
+	return nil
 }

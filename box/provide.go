@@ -24,7 +24,7 @@ func provide[T any](b Builder[T], opts ...Option) {
 // fn函数必须返回 (T,error) 或者 (X, error),X 实现了T接口
 func Provide[T any](fn any, opts ...Option) {
 	if b, ok := fn.(Builder[T]); ok {
-		provide(b, opts...)
+		provide(newValidateAbleBuilder(b), opts...)
 		return
 	}
 	if f, ok := fn.(func(ctx context.Context) (T, error)); ok {

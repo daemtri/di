@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/daemtri/di"
+	"github.com/daemtri/di/box/validate"
 	"github.com/daemtri/di/container"
 )
 
@@ -120,6 +121,13 @@ type dynamicParamsFunctionBuilder[T any] struct {
 	fnType      reflect.Type
 }
 
+func (ib *dynamicParamsFunctionBuilder[T]) ValidateFlags() error {
+	if ib.Option == nil {
+		return nil
+	}
+	return validate.Struct(ib.Option)
+}
+
 func (ib *dynamicParamsFunctionBuilder[T]) Build(ctx context.Context) (T, error) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -160,4 +168,18 @@ func newInstanceBuilder[T any](instance T) Builder[T] {
 
 func (ib *instanceBuilder[T]) Build(ctx context.Context) (T, error) {
 	return ib.instance, nil
+}
+
+type validateAbleBuilder[T any] struct {
+	Builder[T] `flag:""`
+}
+
+func newValidateAbleBuilder[T any](builder Builder[T]) Builder[T] {
+	return &validateAbleBuilder[T]{
+		Builder: builder,
+	}
+}
+
+func (wb *validateAbleBuilder[T]) ValidateFlags() error {
+	return validate.Struct(wb.Builder)
 }

@@ -8,11 +8,9 @@ import (
 
 	"github.com/daemtri/di"
 	"github.com/daemtri/di/box/flagvar"
-	"github.com/daemtri/di/box/validate"
 )
 
 func init() {
-	di.SetValidator(validate.Struct)
 
 	// 补全基础类型
 	di.RegisterFlagBinder(reflect.TypeOf(uint8(1)), bindBaseFlag[uint8])
