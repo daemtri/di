@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/daemtri/di"
 	"github.com/daemtri/di/box/flagx"
@@ -100,4 +102,18 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 
 func Invoke[T any](ctx context.Context) T {
 	return container.Invoke[T](ctx)
+}
+
+type Runable interface {
+	Run(ctx context.Context) error
+}
+
+func Bootstrap[T Runable](opts ...BuildOption) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
+	defer cancel()
+	app, err := Build[T](ctx, opts...)
+	if err != nil {
+		return err
+	}
+	return app.Run(ctx)
 }
