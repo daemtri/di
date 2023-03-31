@@ -129,12 +129,6 @@ func (ib *dynamicParamsFunctionBuilder[T]) ValidateFlags() error {
 }
 
 func (ib *dynamicParamsFunctionBuilder[T]) Build(ctx context.Context) (T, error) {
-	defer func() {
-		if e := recover(); e != nil {
-			t := reflectType[T]()
-			panic(fmt.Errorf("build(%s): %s", t, e))
-		}
-	}()
 	inValues := make([]reflect.Value, 0, ib.fnType.NumIn())
 	for i := 0; i < ib.fnType.NumIn(); i++ {
 		if i == ib.optionIndex && ib.Option != nil {
