@@ -143,3 +143,11 @@ func getImplementFromContext(ctx context.Context, typ reflect.Type) reflect.Type
 	}
 	return imps[typ]
 }
+
+func getOptionalFuncFromContext(ctx context.Context, typ reflect.Type) func(name string, err error) {
+	opts := getContext(ctx).requirer().constructor.optionals
+	if opts == nil {
+		return nil
+	}
+	return opts[typ]
+}

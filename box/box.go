@@ -6,21 +6,14 @@ import (
 	"fmt"
 
 	"github.com/daemtri/di"
-	config "github.com/daemtri/di/box/config/jsonconfig"
-	"github.com/daemtri/di/box/config/yamlconfig"
 	"github.com/daemtri/di/box/flagx"
 )
 
 var (
 	defaultRegistrar = di.GetRegistry()
-
-	nfs         = flagx.NamedFlagSets{}
-	nfsIsParsed bool
-
-	envPrefix = "GF"
-
-	configFile     = "./config.yaml"
-	configLoadFunc = yamlconfig.Load
+	nfs              = flagx.NewNamedFlagSets()
+	nfsIsParsed      bool
+	envPrefix        = "GF"
 )
 
 // Default 返回默认di.Registry
@@ -28,20 +21,8 @@ func Default() di.Registry {
 	return defaultRegistrar
 }
 
-// SetDefaultConfigFile
-func SetDefaultConfigFile(file string) {
-	configFile = file
-}
-
 func SetEnvPrefix(prefix string) {
 	envPrefix = prefix
-}
-
-func SetConfigLoader(defaultFile string, fn func(configFile string) ([]config.ConfigItem, error)) {
-	configFile = defaultFile
-	if fn != nil {
-		configLoadFunc = fn
-	}
 }
 
 func FlagSet(name ...string) *flag.FlagSet {
@@ -71,7 +52,7 @@ func retrofit() error {
 }
 
 // SetConfig 设置配置
-func SetConfig(items []config.ConfigItem, source flagx.Source) error {
+func SetConfig(items []ConfigItem, source flagx.Source) error {
 	var errs error
 	for _, item := range items {
 		if err := nfs.Set(item.Key, item.Value, source); err != nil {

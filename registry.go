@@ -82,6 +82,7 @@ func (r Registry) Provide(typ reflect.Type, flaggerBuilder any, buildFunc func(c
 		buildFunc:         buildFunc,
 		selections:        provideOptions.selections,
 		implements:        provideOptions.implements,
+		optionals:         provideOptions.optionals,
 	}
 	if err := r.constructors[typ].add(provideOptions.name, c); err != nil {
 		panic(fmt.Errorf("type: %s, Name: %s add failed: %s", typ, provideOptions.name, err))

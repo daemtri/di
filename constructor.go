@@ -15,6 +15,7 @@ type constructor struct {
 
 	selections map[reflect.Type]string
 	implements map[reflect.Type]reflect.Type
+	optionals  map[reflect.Type]func(name string, err error)
 
 	mux sync.RWMutex
 }

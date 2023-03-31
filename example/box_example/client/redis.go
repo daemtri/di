@@ -8,9 +8,11 @@ import (
 )
 
 type RedisOptions struct {
-	Host string `flag:"host" default:"127.0.0.1" usage:"redis服务ip地址" validate:"required"`
-	Port int    `flag:"port" default:"6379" usage:"redis服务端口"`
-	DB   int    `flag:"db" default:"0" usage:"redis db"`
+	Host     string `flag:"host" default:"127.0.0.1" usage:"redis服务ip地址" validate:"required"`
+	Port     int    `flag:"port" default:"6379" usage:"redis服务端口"`
+	DB       int    `flag:"db" default:"0" usage:"redis db"`
+	User     string `flag:"user" default:"root" usage:"redis用户名"`
+	Password string `flag:"password" default:"xxx" usage:"redis密码"`
 }
 
 type RedisClient struct {

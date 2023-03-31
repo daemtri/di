@@ -126,21 +126,26 @@ func (c *container) exists(ctx context.Context, p reflect.Type) bool {
 }
 
 func (c *container) mustAll(ctx context.Context, p reflect.Type) map[string]any {
+	targetType := p
 	if p.Kind() == reflect.Interface {
-		iType := getImplementFromContext(ctx, p)
-		if iType != nil {
-			p = iType
+		if iType := getImplementFromContext(ctx, p); iType != nil {
+			targetType = iType
 		}
 	}
-	cst, ok := c.constructors[p]
+	cst, ok := c.constructors[targetType]
 	if !ok {
-		panic(fmt.Errorf("the type %s does not exist", reflectTypeString(p)))
+		panic(fmt.Errorf("the type %s does not exist", reflectTypeString(targetType)))
 	}
 	vv := make(map[string]any, len(cst.groups))
+	optionalFunc := getOptionalFuncFromContext(ctx, p)
 	for name := range cst.groups {
-		v, err := c.build(ctx, p, name)
+		v, err := c.build(ctx, targetType, name)
 		if err != nil {
-			panic(fmt.Errorf("must build failed: %s", err))
+			if optionalFunc != nil {
+				optionalFunc(name, err)
+				continue
+			}
+			panic(fmt.Errorf("container build failed: %s", err))
 		}
 		vv[name] = v
 	}
@@ -149,15 +154,21 @@ func (c *container) mustAll(ctx context.Context, p reflect.Type) map[string]any 
 }
 
 func (c *container) must(ctx context.Context, p reflect.Type) any {
+	targetType := p
 	if p.Kind() == reflect.Interface {
-		iType := getImplementFromContext(ctx, p)
-		if iType != nil {
-			p = iType
+		if iType := getImplementFromContext(ctx, p); iType != nil {
+			targetType = iType
 		}
 	}
-	v, err := c.build(ctx, p, getTypeNameFromContext(ctx, p))
+	name := getTypeNameFromContext(ctx, targetType)
+	v, err := c.build(ctx, p, name)
 	if err != nil {
-		panic(fmt.Errorf("must build failed: %s", err))
+		optionalFunc := getOptionalFuncFromContext(ctx, p)
+		if optionalFunc != nil {
+			optionalFunc(name, err)
+			return nil
+		}
+		panic(fmt.Errorf("container build failed: %s", err))
 	}
 	return v
 }
