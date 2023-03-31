@@ -14,9 +14,7 @@ type UserRedisRepository struct {
 	logger *slog.Logger
 }
 
-type Kaka struct{}
-
-func NewUserRedisRepository(c *client.RedisClient, ka *Kaka, logger *slog.Logger) (*UserRedisRepository, error) {
+func NewUserRedisRepository(c *client.RedisClient, logger *slog.Logger) (*UserRedisRepository, error) {
 	return &UserRedisRepository{c: c, logger: logger}, nil
 }
 
