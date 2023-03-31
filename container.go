@@ -145,7 +145,7 @@ func (c *container) mustAll(ctx context.Context, p reflect.Type) map[string]any 
 				optionalFunc(name, err)
 				continue
 			}
-			panic(fmt.Errorf("container build failed: %s", err))
+			panic(fmt.Errorf("invoke build failed: %s, requirer: %s", err, getContext(ctx).Path()))
 		}
 		vv[name] = v
 	}
@@ -168,7 +168,7 @@ func (c *container) must(ctx context.Context, p reflect.Type) any {
 			optionalFunc(name, err)
 			return nil
 		}
-		panic(fmt.Errorf("container build failed: %s", err))
+		panic(fmt.Errorf("invoke build failed: %s, requirer: %s", err, getContext(ctx).Path()))
 	}
 	return v
 }
