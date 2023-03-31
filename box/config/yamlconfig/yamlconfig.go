@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func Loader() box.BuildOption {
+func Init() box.BuildOption {
 	return box.UseConfigLoader("", &ConfigLoader{})
 }
 

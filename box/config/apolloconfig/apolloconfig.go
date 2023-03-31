@@ -11,7 +11,7 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-func Loader() box.BuildOption {
+func Init() box.BuildOption {
 	return box.UseConfigLoader("apollo", NewConfigLoader())
 }
 

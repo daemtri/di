@@ -33,8 +33,9 @@ func main() {
 
 	// build and run
 	if err := box.Bootstrap[*bootstrap.App](
-		yamlconfig.Loader(),
-		apolloconfig.Loader(),
+		// The configuration has priority, the higher the priority of the closer
+		yamlconfig.Init(),
+		apolloconfig.Init(),
 	); err != nil {
 		panic(err)
 	}
