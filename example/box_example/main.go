@@ -18,7 +18,6 @@ func main() {
 	// register redis client
 	box.Provide[contract.UserRepository](
 		repository.NewUserRedisRepository,
-		box.WithFlags("repo-user"),
 		box.WithSelect[*client.RedisClient](userredis.Name),
 	)
 	// register service
