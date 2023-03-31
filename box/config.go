@@ -3,10 +3,14 @@ package box
 import (
 	"context"
 
-	"github.com/daemtri/di/box/config/jsonconfig"
 	"github.com/daemtri/di/box/flagx"
 	"github.com/daemtri/di/box/validate"
 )
+
+type ConfigItem = struct {
+	Key   string
+	Value string
+}
 
 // ConfigLoader defined a interface to load config
 type ConfigLoader interface {
@@ -15,18 +19,19 @@ type ConfigLoader interface {
 	// that means you can call setter immediately,
 	// then start a goroutine to watch config change until context done,
 	// and call setter again when config changed
-	Load(ctx context.Context, setter func([]jsonconfig.ConfigItem)) error
+	Load(ctx context.Context, setter func([]ConfigItem)) error
 }
 
-type ConfigLoaderBuilder struct {
-	OriginBuilder Builder[ConfigLoader] `flag:""`
-	source        flagx.Source
+type configLoaderBuilder struct {
+	ConfigLoader `flag:""`
+	source       flagx.Source
+	name         string
 }
 
-func (cb *ConfigLoaderBuilder) ValidateFlags() error {
-	return validate.Struct(cb.OriginBuilder)
+func (cb *configLoaderBuilder) ValidateFlags() error {
+	return validate.Struct(cb.ConfigLoader)
 }
 
-func (cb *ConfigLoaderBuilder) Build(ctx context.Context) (ConfigLoader, error) {
-	return cb.OriginBuilder.Build(ctx)
+func (cb *configLoaderBuilder) Build(ctx context.Context) (*configLoaderBuilder, error) {
+	return cb, nil
 }

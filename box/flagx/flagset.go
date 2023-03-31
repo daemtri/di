@@ -22,6 +22,13 @@ type NamedFlagSets struct {
 	validateTags map[string]string
 }
 
+func NewNamedFlagSets() *NamedFlagSets {
+	return &NamedFlagSets{
+		keySource:    map[string]Source{},
+		validateTags: map[string]string{},
+	}
+}
+
 // FlagSet 返回一个以name为名称的flagSet
 // 如果不存在，则新建一个，并保存到FlagSets映射，添加排序
 func (nfs *NamedFlagSets) FlagSet(name ...string) *flag.FlagSet {
@@ -59,6 +66,9 @@ func envKey(prefix string, name string) (key string) {
 
 // CanSet 判断key是否可以被source设置,如果已经被更高优先级的source设置，则返回false
 func (nfs *NamedFlagSets) CanSet(key string, source Source) bool {
+	if nfs.keySource[key] == nil {
+		return true
+	}
 	return source.order() <= nfs.keySource[key].order()
 }
 
@@ -93,7 +103,7 @@ func (nfs *NamedFlagSets) BindFlagSet(fs *flag.FlagSet, envPrefix string) {
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		panic(err)
 	}
-	nfs.keySource = make(map[string]Source, fs.NFlag())
+
 	// record os.Args flags
 	fs.Visit(func(f *flag.Flag) {
 		nfs.keySource[f.Name] = sourceArgs

@@ -1,0 +1,8 @@
+http:
+  addr: :10891
+redis-user:
+  db: 0
+  host: 127.0.0.1
+  password: xxx
+  port: 6379
+  user: root

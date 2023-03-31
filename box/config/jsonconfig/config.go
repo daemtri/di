@@ -6,13 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/daemtri/di/box"
 	"github.com/tidwall/gjson"
 )
-
-type ConfigItem = struct {
-	Key   string
-	Value string
-}
 
 func convertToStringSlice(arr []gjson.Result) []string {
 	ret := make([]string, 0, len(arr))
@@ -60,8 +56,8 @@ func ParseJSON(fs *flag.FlagSet, json string) error {
 	return nil
 }
 
-func parseJSONToKeyValue(prefix string, result *gjson.Result) []ConfigItem {
-	kv := make([]ConfigItem, 0, 10)
+func parseJSONToKeyValue(prefix string, result *gjson.Result) []box.ConfigItem {
+	kv := make([]box.ConfigItem, 0, 10)
 	result.ForEach(func(key, value gjson.Result) bool {
 		flagKey := prefix + key.Str
 		switch value.Type {
@@ -73,7 +69,7 @@ func parseJSONToKeyValue(prefix string, result *gjson.Result) []ConfigItem {
 					panic(err)
 				}
 				wt.Flush()
-				kv = append(kv, ConfigItem{
+				kv = append(kv, box.ConfigItem{
 					Key:   flagKey,
 					Value: sb.String(),
 				})
@@ -81,7 +77,7 @@ func parseJSONToKeyValue(prefix string, result *gjson.Result) []ConfigItem {
 				kv = append(kv, parseJSONToKeyValue(flagKey+"-", &value)...)
 			}
 		default:
-			kv = append(kv, ConfigItem{
+			kv = append(kv, box.ConfigItem{
 				Key:   flagKey,
 				Value: value.String(),
 			})
@@ -91,7 +87,7 @@ func parseJSONToKeyValue(prefix string, result *gjson.Result) []ConfigItem {
 	return kv
 }
 
-func ParseJSONToKeyValue(json string) ([]ConfigItem, error) {
+func ParseJSONToKeyValue(json string) ([]box.ConfigItem, error) {
 	result := gjson.Parse(json)
 	if !result.IsObject() {
 		return nil, fmt.Errorf("参数解析失败")

@@ -31,9 +31,9 @@ func main() {
 	box.Provide[*bootstrap.App](bootstrap.NewApp)
 
 	// build and run
-	if err := box.Bootstrap[*bootstrap.App](box.UseInit(
-		yamlconfig.Init(),
-	)); err != nil {
+	if err := box.Bootstrap[*bootstrap.App](
+		yamlconfig.Loader(),
+	); err != nil {
 		panic(err)
 	}
 }
