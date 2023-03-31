@@ -10,6 +10,7 @@ import (
 	"github.com/daemtri/di"
 	"github.com/daemtri/di/box/flagx"
 	"github.com/daemtri/di/container"
+	"golang.org/x/exp/slog"
 )
 
 type Builder[T any] interface {
@@ -74,12 +75,19 @@ func Build[T any](ctx context.Context, opts ...BuildOption) (T, error) {
 	}
 
 	for i := range opt.configLoaders {
-		provide[*configLoaderBuilder](opt.configLoaders[i], WithFlags(opt.configLoaders[i].name))
+		provide[*configLoaderBuilder](opt.configLoaders[i],
+			WithFlags(opt.configLoaders[i].name),
+			WithName(opt.configLoaders[i].name),
+		)
 	}
 
 	Provide[*initializer[T]](&initializer[T]{
 		beforeFuncs: opt.inits,
-	})
+	}, WithOptional[*configLoaderBuilder](func(name string, err error) {
+		if err != nil {
+			slog.Warn("load config failed", "name", name, "error", err)
+		}
+	}))
 	agent, err := di.Build[*initializer[T]](ctx)
 	if err != nil {
 		return emptyValue[T](), err

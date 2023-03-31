@@ -36,6 +36,12 @@ func WithFlags(prefix string) Option {
 	})
 }
 
+func WithOptional[T any](fn func(name string, err error)) Option {
+	return optionsFunc(func(o *options) {
+		o.opts = append(o.opts, di.WithOptional[T](fn))
+	})
+}
+
 // WithSelect 仅供在ProvideInject时使用，可以指定注入某个类型的名字
 func WithSelect[T any](name string) Option {
 	return optionsFunc(func(o *options) {

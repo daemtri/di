@@ -6,3 +6,5 @@ redis-user:
   password: xxx
   port: 6379
   user: root
+apollo:
+  appid: 123

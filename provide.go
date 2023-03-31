@@ -13,6 +13,7 @@ type options struct {
 	flagset    *flag.FlagSet
 	selections map[reflect.Type]string
 	implements map[reflect.Type]reflect.Type
+	optionals  map[reflect.Type]func(name string, err error)
 }
 
 func resolveOptions(opts ...Option) options {
@@ -57,6 +58,15 @@ func WithSelect[T any](name string) Option {
 			opts.selections = make(map[reflect.Type]string)
 		}
 		opts.selections[reflectType[T]()] = name
+	})
+}
+
+func WithOptional[T any](fn func(name string, err error)) Option {
+	return optionFunc(func(opts *options) {
+		if opts.optionals == nil {
+			opts.optionals = make(map[reflect.Type]func(nane string, err error))
+		}
+		opts.optionals[reflectType[T]()] = fn
 	})
 }
 
